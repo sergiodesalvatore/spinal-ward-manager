@@ -41,7 +41,7 @@ const PatientDetailPage = () => {
         
         {/* Navigation Breadcrumb */}
         <div className="hidden md:flex items-center space-x-2 text-on-surface-variant text-xs mb-2">
-          <span onClick={() => navigate('/')} className="cursor-pointer hover:text-primary">Patients</span>
+          <span onClick={() => navigate('/')} className="cursor-pointer hover:text-primary">Pazienti</span>
           <span className="material-symbols-outlined text-[10px]">chevron_right</span>
           <span>{patient.location}</span>
           <span className="material-symbols-outlined text-[10px]">chevron_right</span>
@@ -61,7 +61,7 @@ const PatientDetailPage = () => {
           </div>
           <div className="flex items-center gap-3 w-full md:w-auto mt-2 md:mt-0 justify-between md:justify-end">
              <span className="px-3 py-1 bg-secondary-container text-on-secondary-container text-xs font-bold rounded-full uppercase tracking-wider">
-               Post-Op Day {postOpDays}
+               Giorno Post-Op {postOpDays}
              </span>
              <button onClick={handleDischarge} className="bg-surface-container-high text-on-surface-variant px-4 py-2 md:px-6 md:py-2.5 rounded-xl font-bold text-sm shadow-sm hover:opacity-90 active:scale-95 transition-all flex items-center">
                <span className="material-symbols-outlined md:mr-2 text-sm">inventory_2</span>
@@ -142,7 +142,7 @@ const PatientDetailPage = () => {
                 <div className={`p-5 rounded-xl flex flex-col justify-between shadow-sm border-l-4 ${patient.hasCV && is48hPassed ? 'bg-surface-container-lowest border-error' : 'bg-surface-container-lowest border-outline-variant/30'}`}>
                   <div className="flex justify-between items-start mb-4">
                     <div className="space-y-1">
-                      <p className="text-[10px] font-bold text-on-surface-variant uppercase tracking-widest">Catheter Status</p>
+                      <p className="text-[10px] font-bold text-on-surface-variant uppercase tracking-widest">Stato Catetere</p>
                       <p className="text-sm font-bold text-on-surface">Rimozione CV</p>
                     </div>
                     {patient.hasCV && is48hPassed && (
@@ -178,7 +178,7 @@ const PatientDetailPage = () => {
                 {/* RX Checkpoints */}
                 <div className="bg-surface-container-lowest p-5 rounded-xl shadow-sm flex flex-col space-y-4 border-l-4 border-primary">
                   <div className="space-y-1">
-                    <p className="text-[10px] font-bold text-on-surface-variant uppercase tracking-widest">Radiology Progress</p>
+                    <p className="text-[10px] font-bold text-on-surface-variant uppercase tracking-widest">Progresso Radiologico</p>
                     <p className="text-sm font-bold text-on-surface">Radiologia (RX)</p>
                   </div>
                   <div className="space-y-2">
@@ -215,7 +215,7 @@ const PatientDetailPage = () => {
           <div className="bg-white rounded-xl overflow-hidden shadow-sm grid grid-cols-1 md:grid-cols-2">
             <div className="p-6 md:p-8 space-y-4">
               <span className="px-2 py-1 bg-primary/10 text-primary text-[10px] font-bold rounded uppercase tracking-widest">Visione Post-Operatoria</span>
-              <h4 className="text-xl md:text-2xl font-headline font-extrabold text-on-surface tracking-tight">Post-Surgical Alignment</h4>
+              <h4 className="text-xl md:text-2xl font-headline font-extrabold text-on-surface tracking-tight">Allineamento Post-Chirurgico</h4>
               <p className="text-on-surface-variant text-sm leading-relaxed">
                   (Simulazione) Il referto indica un corretto allineatore. Mezzi di sintesi in sede. Si attende validazione in stazione eretta.
               </p>
@@ -223,7 +223,7 @@ const PatientDetailPage = () => {
             <div className="h-48 md:h-full relative group cursor-zoom-in bg-slate-900">
                <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent flex flex-col justify-end p-4 z-10 pointer-events-none">
                  <p className="text-white text-sm font-bold">Vista AP Colonna</p>
-                 <p className="text-white/70 text-[10px]">Reference placeholder</p>
+                 <p className="text-white/70 text-[10px]">Immagine di Riferimento</p>
                </div>
                <img src="https://lh3.googleusercontent.com/aida-public/AB6AXuDhStw62rgHSTMFWnJc3msn4Ue3ugzE2vXuvi75kiErAVNmtcELDxFpMfh1vPmaKqLmLFdkkxSSXivO_pQgOEhJyHTjjQmUZCh2nOuOfoGIFn4NNrL3XI9vJpy8b-HB7CArBTB0ol2fSwVjTJvmG61vwxdG6s9nCt0q8s76H-C2ajenu5pRc5Ig5ihjn3jsXNyFKNTjvAJek1zkNt0coRviW26jMSmnewmrfUiHOrCBELtb3mgSY10FCxhzDoI6wFya0G1JgIhfnG7r" alt="scoliosis x-ray" className="w-full h-full object-cover grayscale opacity-80" />
             </div>

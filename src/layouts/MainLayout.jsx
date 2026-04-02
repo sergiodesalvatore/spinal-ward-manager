@@ -27,8 +27,8 @@ const MainLayout = ({ setIsSettingsOpen }) => {
               <span className="material-symbols-outlined" style={{ fontVariationSettings: "'FILL' 1" }}>clinical_notes</span>
             </div>
             <div>
-              <h2 className="text-lg font-bold text-slate-800 dark:text-slate-100 leading-tight font-headline">Orthopaedic Unit</h2>
-              <p className="text-[10px] uppercase tracking-wider text-slate-500 font-bold">Scoliosis Surgery Dept</p>
+              <h2 className="text-lg font-bold text-slate-800 dark:text-slate-100 leading-tight font-headline">Unità Operativa Ortopedia</h2>
+              <p className="text-[10px] uppercase tracking-wider text-slate-500 font-bold">Reparto Chirurgia Vertebrale</p>
             </div>
           </div>
         </div>
@@ -36,26 +36,26 @@ const MainLayout = ({ setIsSettingsOpen }) => {
         <nav className="flex-1 space-y-1">
           <NavLink to="/" className={getLinkClasses}>
             <span className="material-symbols-outlined" style={{ fontVariationSettings: location.pathname === '/' ? "'FILL' 1" : "" }}>clinical_notes</span>
-            <span>Active Patients</span>
+            <span>Pazienti Attivi</span>
           </NavLink>
           <NavLink to="/add" className={getLinkClasses}>
             <span className="material-symbols-outlined" style={{ fontVariationSettings: location.pathname === '/add' ? "'FILL' 1" : "" }}>person_add</span>
-            <span>Add New Patient</span>
+            <span>Aggiungi Paziente</span>
           </NavLink>
           <NavLink to="/archive" className={getLinkClasses}>
             <span className="material-symbols-outlined" style={{ fontVariationSettings: location.pathname === '/archive' ? "'FILL' 1" : "" }}>archive</span>
-            <span>Archive</span>
+            <span>Archivio</span>
           </NavLink>
         </nav>
 
         <div className="pt-4 border-t border-outline-variant/20 space-y-1">
           <button className="w-full mb-4 py-3 px-4 bg-error-container text-on-error-container rounded-xl font-bold text-xs flex items-center justify-center gap-2 transition-transform active:scale-95">
             <span className="material-symbols-outlined text-sm">emergency</span>
-            Emergency Alert
+            Allarme Emergenza
           </button>
           <button className="w-full flex items-center gap-3 px-4 py-2 text-slate-600 dark:text-slate-400 hover:text-[#005dac] hover:bg-white/50 dark:hover:bg-slate-700/50 rounded-xl transition-all duration-200 font-manrope text-sm font-medium">
             <span className="material-symbols-outlined">help</span>
-            <span>Support</span>
+            <span>Supporto</span>
           </button>
         </div>
       </aside>

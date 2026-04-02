@@ -84,6 +84,7 @@
 
   /* Material Symbols global config */
   .material-symbols-outlined {
+    font-family: 'Material Symbols Outlined';
     font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
     display: inline-block;
     line-height: 1;
@@ -95,9 +96,11 @@
   }
 
   /* Hide scrollbar for clean sanctuary look */
-  ::-webkit-scrollbar { display: none; }
-  -ms-overflow-style: none;
-  scrollbar-width: none;
+  * {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  *::-webkit-scrollbar { display: none; }
 }
 
 @layer components {

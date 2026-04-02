@@ -56,7 +56,7 @@ const ArchivePage = () => {
 
       <div className="hidden md:block max-w-7xl w-full mx-auto mb-10">
         <nav className="flex items-center gap-2 text-xs font-medium text-on-surface-variant mb-2">
-          <span>Management</span>
+          <span>Gestione</span>
           <span className="material-symbols-outlined text-[10px]">chevron_right</span>
           <span className="text-primary">Archivio Pazienti</span>
         </nav>
