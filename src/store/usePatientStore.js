@@ -14,12 +14,12 @@ export const usePatientStore = () => {
   // Initial load
   useEffect(() => {
     // Clear out any old Google Apps Script URL if it exists, to avoid confusion
-    let localUrl = localStorage.getItem(SYNC_URL_KEY) || '';
+    let localUrl = localStorage.getItem(SYNC_URL_KEY) || 'https://api.jsonbin.io/v3/b/69ce73b8856a682189f28c19';
     if (localUrl.includes('script.google.com')) {
       localUrl = '';
       localStorage.removeItem(SYNC_URL_KEY);
     }
-    const localKey = localStorage.getItem(SYNC_KEY_KEY) || '';
+    const localKey = localStorage.getItem(SYNC_KEY_KEY) || '$2a$10$RV5cxNNHqP7SYsZfbyEJtOB5/FEj/mnrnC0vS/Ql8b3mWa5WA2f.6';
     
     setSyncUrl(localUrl);
     setSyncApiKey(localKey);
