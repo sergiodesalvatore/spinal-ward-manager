@@ -17,7 +17,6 @@ const PatientFormPage = () => {
     hasDrainage: true,
     hasCV: true,
     operationDate: new Date().toISOString().split('T')[0],
-    operationTime: '08:00',
   });
 
   const handleChange = (e) => {
@@ -86,7 +85,7 @@ const PatientFormPage = () => {
               <label className="block text-xs md:text-sm font-semibold text-on-surface-variant px-1 uppercase tracking-widest">Numero Letto</label>
               <div className="relative">
                 <span className="absolute left-4 top-1/2 -translate-y-1/2 material-symbols-outlined text-outline">bed</span>
-                <input required type="text" name="bedNumber" value={formData.bedNumber} onChange={handleChange}
+                <input type="text" name="bedNumber" value={formData.bedNumber} onChange={handleChange}
                   className="w-full bg-surface-container-low border-none rounded-xl pl-12 pr-4 py-3 focus:ring-2 focus:ring-primary/20 focus:bg-surface-container-lowest transition-all placeholder:text-outline-variant" placeholder="402" />
               </div>
             </div>
@@ -94,12 +93,6 @@ const PatientFormPage = () => {
             <div className="space-y-2">
               <label className="block text-xs md:text-sm font-semibold text-on-surface-variant px-1 uppercase tracking-widest">Data Intervento</label>
               <input required type="date" name="operationDate" value={formData.operationDate} onChange={handleChange}
-                className="w-full bg-surface-container-low border-none rounded-xl px-4 py-3 focus:ring-2 focus:ring-primary/20 focus:bg-surface-container-lowest transition-all" />
-            </div>
-
-            <div className="space-y-2">
-              <label className="block text-xs md:text-sm font-semibold text-on-surface-variant px-1 uppercase tracking-widest">Ora Fine Intervento</label>
-              <input required type="time" name="operationTime" value={formData.operationTime} onChange={handleChange}
                 className="w-full bg-surface-container-low border-none rounded-xl px-4 py-3 focus:ring-2 focus:ring-primary/20 focus:bg-surface-container-lowest transition-all" />
             </div>
           </div>
@@ -145,7 +138,7 @@ const PatientFormPage = () => {
                 <div className="w-8 h-8 rounded-full bg-error-container/30 flex items-center justify-center">
                   <span className="material-symbols-outlined text-error text-sm">monitor_heart</span>
                 </div>
-                <span className="text-sm font-medium text-on-surface">Accesso CV</span>
+                <span className="text-sm font-medium text-on-surface">Catetere Vescicale (CV)</span>
               </div>
               <label className="relative inline-flex items-center cursor-pointer">
                 <input type="checkbox" name="hasCV" className="sr-only peer" checked={formData.hasCV} onChange={handleChange} />
@@ -160,7 +153,7 @@ const PatientFormPage = () => {
           <button type="button" onClick={() => navigate(-1)} className="w-full md:w-auto px-8 py-4 md:py-3 rounded-xl md:rounded-full font-bold text-on-surface-variant hover:bg-surface-container-high transition-all active:scale-95 duration-150">
             Annulla
           </button>
-          <button type="submit" className="w-full md:w-auto px-10 py-4 md:py-3 rounded-xl md:rounded-full bg-gradient-to-br from-primary to-primary-container md:bg-none text-white font-bold md:shadow-lg shadow-primary/20 hover:brightness-110 active:scale-95 transition-all duration-150 flex items-center justify-center gap-2">
+          <button type="submit" className="w-full md:w-auto px-10 py-4 md:py-3 rounded-xl md:rounded-full bg-gradient-to-br from-primary to-primary-container text-white font-bold md:shadow-lg shadow-primary/20 hover:brightness-110 active:scale-95 transition-all duration-150 flex items-center justify-center gap-2">
             <span className="material-symbols-outlined" style={{ fontVariationSettings: "'FILL' 1" }}>save</span>
             Salva Paziente
           </button>
