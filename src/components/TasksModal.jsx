@@ -1,6 +1,6 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { usePatientStore } from '../store/PatientContext';
+import { usePatientStore } from '../store/usePatientStore';
 
 const TasksModal = ({ onClose }) => {
   const { patients } = usePatientStore();
