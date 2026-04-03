@@ -1,11 +1,13 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { usePatientStore } from '../store/usePatientStore';
+import TasksModal from '../components/TasksModal';
 
 const MainLayout = ({ setIsSettingsOpen }) => {
   const location = useLocation();
   const navigate = useNavigate();
   const { patients } = usePatientStore();
+  const [isTasksOpen, setIsTasksOpen] = useState(false);
 
   const activePatients = patients.filter(p => p.status !== 'Archived' && p.status !== 'Discharged');
   const pendingTasks = activePatients.filter(p => {
@@ -64,7 +66,7 @@ const MainLayout = ({ setIsSettingsOpen }) => {
 
         <div className="pt-4 border-t border-outline-variant/20 space-y-1">
           {pendingTasks > 0 && (
-            <button onClick={() => navigate('/')} className="w-full mb-4 py-3 px-4 bg-error-container text-on-error-container rounded-xl font-bold text-xs flex items-center justify-center gap-2 transition-transform active:scale-95">
+            <button onClick={() => setIsTasksOpen(true)} className="w-full mb-4 py-3 px-4 bg-error-container text-on-error-container rounded-xl font-bold text-xs flex items-center justify-center gap-2 transition-transform active:scale-95">
               <span className="material-symbols-outlined text-sm">notifications_active</span>
               Da Fare ({pendingTasks})
             </button>
@@ -88,7 +90,7 @@ const MainLayout = ({ setIsSettingsOpen }) => {
           </div>
 
           <div className="flex items-center gap-2 md:gap-4">
-            <button onClick={() => navigate('/')} className="p-2 text-slate-600 dark:text-slate-400 hover:bg-[#f2f4f5] dark:hover:bg-slate-800 rounded-full transition-colors relative active:scale-90 shrink-0">
+            <button onClick={() => setIsTasksOpen(true)} className="p-2 text-slate-600 dark:text-slate-400 hover:bg-[#f2f4f5] dark:hover:bg-slate-800 rounded-full transition-colors relative active:scale-90 shrink-0">
               <span className="material-symbols-outlined">notifications</span>
               {pendingTasks > 0 && (
                 <span className="absolute top-2 right-2 w-2 h-2 bg-error rounded-full border-2 border-background"></span>
@@ -103,7 +105,7 @@ const MainLayout = ({ setIsSettingsOpen }) => {
             </button>
             <div className="hidden md:block h-8 w-[1px] bg-outline-variant/30 mx-2"></div>
             <div className="hidden md:flex items-center gap-3">
-              <span className="text-xs font-semibold text-on-surface-variant">Dr. Sergio</span>
+              <span className="text-xs font-semibold text-on-surface-variant">Spine Team</span>
               <div className="w-10 h-10 rounded-full overflow-hidden border border-outline-variant/30 shadow-sm shrink-0">
                  <img src="https://lh3.googleusercontent.com/aida-public/AB6AXuAXMyjhSyH-bRvvem3BqfvGx1Vr-8VrSRm36WLvbm6zjtS7A0Cx9igjnBwp7L3hd6g30OPubOCNQzHNz1f2SZ9VlCQ6BM45tSf9AZNn4nL6juI3-rLX56pmBo-JzVikfC7vyCUnuS4mjghl3oAszsDLqnLriR8MBauB9TwDG1IEyUF6gp8XTLYLTqqQ0OVznD_F6V_FyaTnKuZv8C6U4_QuSv7AaVvXWOzCIMyt1q4pCO86NhTGOAQvgzln5-lDhOD7a754D9ED56CV" alt="Profile" className="w-full h-full object-cover" />
               </div>
@@ -130,6 +132,8 @@ const MainLayout = ({ setIsSettingsOpen }) => {
           <span className="text-[10px] font-bold font-inter uppercase tracking-widest">Archivio</span>
         </NavLink>
       </nav>
+
+      {isTasksOpen && <TasksModal onClose={() => setIsTasksOpen(false)} />}
     </div>
   );
 };

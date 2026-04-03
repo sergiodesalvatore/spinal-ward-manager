@@ -30,28 +30,44 @@ export const PatientProvider = ({ children }) => {
       try { localPatients = JSON.parse(raw); } catch (e) { console.error(e); }
     }
 
-    if (localUrl) {
-      setIsSyncing(true);
+    let intervalId;
+
+    const fetchRemote = () => {
+      if (!localUrl) return;
       fetch(localUrl, { headers: localKey ? { 'X-Master-Key': localKey } : {} })
         .then(res => res.json())
         .then(data => {
           const fetchedData = data.record || data;
           if (Array.isArray(fetchedData)) {
-            setPatients(fetchedData);
-            localStorage.setItem(STORAGE_KEY, JSON.stringify(fetchedData));
-          } else {
-            setPatients(localPatients);
+            // Need to check if there's actually a change to prevent re-renders when nothing changed
+            setPatients(prev => {
+              if (JSON.stringify(prev) !== JSON.stringify(fetchedData)) {
+                localStorage.setItem(STORAGE_KEY, JSON.stringify(fetchedData));
+                return fetchedData;
+              }
+              return prev;
+            });
           }
         })
-        .catch(err => setPatients(localPatients))
+        .catch(err => console.error("Poll failed", err))
         .finally(() => {
           setIsSyncing(false);
           initialized.current = true;
         });
+    };
+
+    if (localUrl) {
+      setIsSyncing(true);
+      fetchRemote();
+      intervalId = setInterval(fetchRemote, 10000);
     } else {
       setPatients(localPatients);
       initialized.current = true;
     }
+
+    return () => {
+      if (intervalId) clearInterval(intervalId);
+    };
   }, []);
 
   const saveToStorage = async (updatedPatients) => {

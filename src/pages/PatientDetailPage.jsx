@@ -209,27 +209,6 @@ const PatientDetailPage = () => {
             
           </div>
         </div>
-
-        {/* Simulated Image Focus Card (From HTML Design) */}
-        <section className="bg-surface-container-highest p-1 rounded-2xl md:mt-8">
-          <div className="bg-white rounded-xl overflow-hidden shadow-sm grid grid-cols-1 md:grid-cols-2">
-            <div className="p-6 md:p-8 space-y-4">
-              <span className="px-2 py-1 bg-primary/10 text-primary text-[10px] font-bold rounded uppercase tracking-widest">Visione Post-Operatoria</span>
-              <h4 className="text-xl md:text-2xl font-headline font-extrabold text-on-surface tracking-tight">Allineamento Post-Chirurgico</h4>
-              <p className="text-on-surface-variant text-sm leading-relaxed">
-                  (Simulazione) Il referto indica un corretto allineatore. Mezzi di sintesi in sede. Si attende validazione in stazione eretta.
-              </p>
-            </div>
-            <div className="h-48 md:h-full relative group cursor-zoom-in bg-slate-900">
-               <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent flex flex-col justify-end p-4 z-10 pointer-events-none">
-                 <p className="text-white text-sm font-bold">Vista AP Colonna</p>
-                 <p className="text-white/70 text-[10px]">Immagine di Riferimento</p>
-               </div>
-               <img src="https://lh3.googleusercontent.com/aida-public/AB6AXuDhStw62rgHSTMFWnJc3msn4Ue3ugzE2vXuvi75kiErAVNmtcELDxFpMfh1vPmaKqLmLFdkkxSSXivO_pQgOEhJyHTjjQmUZCh2nOuOfoGIFn4NNrL3XI9vJpy8b-HB7CArBTB0ol2fSwVjTJvmG61vwxdG6s9nCt0q8s76H-C2ajenu5pRc5Ig5ihjn3jsXNyFKNTjvAJek1zkNt0coRviW26jMSmnewmrfUiHOrCBELtb3mgSY10FCxhzDoI6wFya0G1JgIhfnG7r" alt="scoliosis x-ray" className="w-full h-full object-cover grayscale opacity-80" />
-            </div>
-          </div>
-        </section>
-
       </div>
     </div>
   );
