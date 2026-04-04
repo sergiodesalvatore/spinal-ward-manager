@@ -5,18 +5,25 @@ import { usePatientStore } from '../store/usePatientStore';
 const WardDashboard = () => {
   const { patients, updatePatient } = usePatientStore();
   const navigate = useNavigate();
+  const [tooltipPatientId, setTooltipPatientId] = useState(null);
   const [filter, setFilter] = useState('All');
 
   // Filter out archived patients. Assume active unless explicitly archived or discharged
   const activePatients = patients.filter(p => p.status !== 'Archived' && p.status !== 'Discharged');
 
+  const daysSinceOp = (p) => Math.floor((new Date() - new Date(p.operationDate)) / (1000 * 60 * 60 * 24));
+
+  // RX status: 'pending' = <48h, 'needed' = >=48h not done, 'done' = done
+  const getRxStatus = (p) => {
+    if (p.rxDone) return 'done';
+    return daysSinceOp(p) >= 2 ? 'needed' : 'pending';
+  };
+
   const hasPendingTasks = (p) => {
     if (!p.diariaUpdated) return true;
-    if (p.hasCV) {
-      const diffTime = Math.abs(new Date() - new Date(p.operationDate));
-      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-      if (diffDays >= 2) return true;
-    }
+    const days = daysSinceOp(p);
+    if (p.hasCV && days >= 2) return true;
+    if (!p.rxDone && days >= 2) return true;
     return false;
   };
 
@@ -82,9 +89,15 @@ const WardDashboard = () => {
                     <h2 className="text-base font-bold text-on-surface relative inline-block leading-tight mt-0.5">
                       {patient.firstName} {patient.lastName}
                       {hasPendingTasks(patient) && (
-                        <span className="absolute -top-1 -right-3 w-2 h-2 bg-error rounded-full"></span>
+                        <button type="button" className="relative w-2 h-2 bg-error rounded-full ml-2" onClick={(e) => { e.stopPropagation(); setTooltipPatientId(tooltipPatientId === patient.id ? null : patient.id); }} title="Task pendenti"></button>
                       )}
                     </h2>
+                    {tooltipPatientId === patient.id && (
+                      <div className="absolute z-10 mt-1 w-48 bg-surface-container-high text-on-surface p-2 rounded shadow-lg">
+                        <p className="text-sm">{!patient.diariaUpdated && "Diaria non aggiornata"}</p>
+                        {patient.hasCV && (() => { const diff = Math.ceil((new Date() - new Date(patient.operationDate)) / (1000*60*60*24)); return diff >= 2 ? <p className="text-sm">{`CV da rimuovere (${diff} gg)`}</p> : null; })()}
+                      </div>
+                    )}
                     <div className="text-[10px] text-on-surface-variant font-medium mt-1">Intervento: {new Date(patient.operationDate).toLocaleDateString()}</div>
                   </div>
                 </div>
@@ -127,20 +140,28 @@ const WardDashboard = () => {
               </div>
 
               {/* Row 3: Presidi UI matching Desktop checkboxes */}
-              <div className="flex items-center gap-6 px-1">
-                <div className="flex items-center gap-2">
-                   <div className="flex items-center justify-center p-1 rounded-full bg-surface-container-high relative w-8 h-4 pointer-events-none">
-                     <div className={`absolute top-[2px] w-3 h-3 rounded-full bg-white shadow-sm transition-all ${patient.hasDrainage ? 'right-[2px] bg-secondary' : 'left-[2px] bg-outline'}`} />
-                   </div>
-                   <span className="text-[10px] font-bold text-on-surface-variant uppercase tracking-widest leading-none">Drenaggio</span>
+                <div className="flex items-center gap-6 px-1">
+                  <div className="flex items-center gap-2">
+                    <label className="inline-flex items-center cursor-pointer" onClick={(e) => e.stopPropagation()}>
+                      <input type="checkbox" className="sr-only peer" checked={patient.hasDrainage} onChange={(e) => updatePatient(patient.id, { hasDrainage: e.target.checked })} />
+                      <div className="w-11 h-6 bg-surface-container-high rounded-full peer-checked:bg-secondary after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:w-5 after:h-5 after:bg-white after:rounded-full after:transition-all peer-checked:after:translate-x-5" />
+                    </label>
+                    <span className="text-[10px] font-bold text-on-surface-variant uppercase tracking-widest leading-none">Drenaggio</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <label className="inline-flex items-center cursor-pointer" onClick={(e) => e.stopPropagation()}>
+                      <input type="checkbox" className="sr-only peer" checked={patient.hasCV} onChange={(e) => updatePatient(patient.id, { hasCV: e.target.checked })} />
+                      <div className="w-11 h-6 bg-surface-container-high rounded-full peer-checked:bg-secondary after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:w-5 after:h-5 after:bg-white after:rounded-full after:transition-all peer-checked:after:translate-x-5" />
+                    </label>
+                    <span className="text-[10px] font-bold text-on-surface-variant uppercase tracking-widest leading-none">CV Access</span>
+                  </div>
                 </div>
-                <div className="flex items-center gap-2">
-                   <div className="flex items-center justify-center p-1 rounded-full bg-surface-container-high relative w-8 h-4 pointer-events-none">
-                     <div className={`absolute top-[2px] w-3 h-3 rounded-full bg-white shadow-sm transition-all ${patient.hasCV ? 'right-[2px] bg-secondary' : 'left-[2px] bg-outline'}`} />
-                   </div>
-                   <span className="text-[10px] font-bold text-on-surface-variant uppercase tracking-widest leading-none">CV Access</span>
+                {/* RX placeholder for mobile */}
+                <div className="flex items-center justify-center mt-2">
+                  <div className="w-12 h-12 bg-surface-container-low rounded flex items-center justify-center text-on-surface-variant">
+                    RX
+                  </div>
                 </div>
-              </div>
             </div>
           ))}
           {sortedPatients.length === 0 && (
@@ -163,6 +184,7 @@ const WardDashboard = () => {
                   <th className="px-4 py-4 text-xs font-bold uppercase tracking-wider text-on-surface-variant text-center">Drenaggio</th>
                   <th className="px-4 py-4 text-xs font-bold uppercase tracking-wider text-on-surface-variant text-center">CV</th>
                   <th className="px-4 py-4 text-xs font-bold uppercase tracking-wider text-on-surface-variant text-center">Diaria</th>
+                  <th className="px-4 py-4 text-xs font-bold uppercase tracking-wider text-on-surface-variant text-center">RX</th>
                   <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-on-surface-variant text-right">Azioni</th>
                 </tr>
               </thead>
@@ -178,8 +200,15 @@ const WardDashboard = () => {
                           <div className="font-bold text-on-surface relative inline-block">
                             {patient.firstName} {patient.lastName}
                             {hasPendingTasks(patient) && (
-                              <span className="absolute top-0 -right-4 w-2 h-2 bg-error rounded-full" title="Task pendenti"></span>
-                            )}
+                            <button type="button" className="relative w-2 h-2 bg-error rounded-full ml-2" onClick={(e) => { e.stopPropagation(); setTooltipPatientId(tooltipPatientId === patient.id ? null : patient.id); }} title="Task pendenti"></button>
+                          )}
+                          {tooltipPatientId === patient.id && (
+                            <div className="absolute z-10 mt-1 w-56 bg-surface-container-high text-on-surface p-2 rounded shadow-lg">
+                              {!patient.diariaUpdated && <p className="text-sm py-0.5">📋 Diaria non aggiornata</p>}
+                              {patient.hasCV && daysSinceOp(patient) >= 2 && <p className="text-sm py-0.5">🩺 CV da rimuovere ({daysSinceOp(patient)} gg)</p>}
+                              {!patient.rxDone && daysSinceOp(patient) >= 2 && <p className="text-sm py-0.5">🩻 RX da richiedere</p>}
+                            </div>
+                          )}
                           </div>
                           <div className="text-xs text-on-surface-variant font-medium">Intervento: {new Date(patient.operationDate).toLocaleDateString()}</div>
                         </div>
@@ -206,30 +235,49 @@ const WardDashboard = () => {
                         <option value="Reparto">Reparto</option>
                       </select>
                     </td>
-                    <td className="px-4 py-5 text-center">
-                       <label className="relative inline-flex items-center cursor-pointer pointer-events-none">
-                        <input type="checkbox" className="sr-only peer" checked={patient.hasDrainage || false} readOnly />
-                        <div className="w-11 h-6 bg-surface-container-high rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-secondary"></div>
-                      </label>
+                    <td className="px-4 py-5 text-center" onClick={(e) => e.stopPropagation()}>
+                       {/* Drainage toggle */}
+                       <label className="inline-flex items-center cursor-pointer">
+                         <input type="checkbox" className="sr-only peer" checked={!!patient.hasDrainage} onChange={(e) => updatePatient(patient.id, { hasDrainage: e.target.checked })} />
+                         <div className="relative w-11 h-6 bg-surface-container-high rounded-full peer-checked:bg-secondary after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:w-5 after:h-5 after:bg-white after:rounded-full after:transition-all peer-checked:after:translate-x-5" />
+                       </label>
+                    </td>
+                    <td className="px-4 py-5 text-center" onClick={(e) => e.stopPropagation()}>
+                       {/* CV toggle */}
+                       <label className="inline-flex items-center cursor-pointer">
+                         <input type="checkbox" className="sr-only peer" checked={!!patient.hasCV} onChange={(e) => updatePatient(patient.id, { hasCV: e.target.checked })} />
+                         <div className="relative w-11 h-6 bg-surface-container-high rounded-full peer-checked:bg-secondary after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:w-5 after:h-5 after:bg-white after:rounded-full after:transition-all peer-checked:after:translate-x-5" />
+                       </label>
                     </td>
                     <td className="px-4 py-5 text-center">
-                      <label className="relative inline-flex items-center cursor-pointer pointer-events-none">
-                        <input type="checkbox" className="sr-only peer" checked={patient.hasCV || false} readOnly />
-                        <div className="w-11 h-6 bg-surface-container-high rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-secondary"></div>
-                      </label>
+                       {patient.diariaUpdated ? (
+                         <span className="material-symbols-outlined text-secondary" style={{ fontVariationSettings: "'FILL' 1" }}>check_circle</span>
+                       ) : (
+                         <span className="material-symbols-outlined text-outline-variant">radio_button_unchecked</span>
+                       )}
                     </td>
-                    <td className="px-4 py-3 text-center">
-                      <button 
-                         onClick={(e) => { e.stopPropagation(); updatePatient(patient.id, { diariaUpdated: !patient.diariaUpdated }); }}
-                         className="p-1 rounded-full hover:bg-surface-container-high transition-colors active:scale-95"
-                         title={patient.diariaUpdated ? "Segna come non aggiornato" : "Segna come aggiornato"}
-                      >
-                        {patient.diariaUpdated ? (
-                           <span className="material-symbols-outlined text-secondary" style={{ fontVariationSettings: "'FILL' 1" }}>check_circle</span>
-                        ) : (
-                           <span className="material-symbols-outlined text-outline-variant hover:text-secondary transition-colors">radio_button_unchecked</span>
-                        )}
-                      </button>
+                    <td className="px-4 py-3 text-center" onClick={(e) => e.stopPropagation()}>
+                       {(() => {
+                         const status = getRxStatus(patient);
+                         if (status === 'done') return (
+                           <button onClick={() => updatePatient(patient.id, { rxDone: false })} className="flex items-center gap-1 mx-auto text-secondary text-xs font-bold" title="RX eseguita (clicca per annullare)">
+                             <span className="material-symbols-outlined text-base" style={{ fontVariationSettings: "'FILL' 1" }}>radiology</span>
+                             <span>Eseguita</span>
+                           </button>
+                         );
+                         if (status === 'needed') return (
+                           <button onClick={() => updatePatient(patient.id, { rxDone: true })} className="flex items-center gap-1 mx-auto text-error text-xs font-bold animate-pulse" title="RX da richiedere (clicca per segnare come eseguita)">
+                             <span className="material-symbols-outlined text-base">radiology</span>
+                             <span>Richiesta</span>
+                           </button>
+                         );
+                         return (
+                           <span className="flex items-center gap-1 mx-auto text-outline-variant text-xs" title="RX non ancora necessaria">
+                             <span className="material-symbols-outlined text-base">radiology</span>
+                             <span>Presto</span>
+                           </span>
+                         );
+                       })()}
                     </td>
                     <td className="px-6 py-5 text-right">
                       <button className="text-primary font-bold text-xs hover:underline" onClick={(e) => { e.stopPropagation(); navigate(`/patient/${patient.id}`); }}>Vedi Cartella</button>

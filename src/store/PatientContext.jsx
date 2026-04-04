@@ -1,5 +1,8 @@
 import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
 
+// Polling interval (ms). Can be overridden via REACT_APP_POLL_INTERVAL_MS env variable.
+const POLL_INTERVAL_MS = Number(process.env.REACT_APP_POLL_INTERVAL_MS) || 2000;
+
 const STORAGE_KEY = 'spine-ward-patients';
 const SYNC_URL_KEY = 'spine-ward-sync-url';
 const SYNC_KEY_KEY = 'spine-ward-sync-apikey';
@@ -30,7 +33,7 @@ export const PatientProvider = ({ children }) => {
       try { localPatients = JSON.parse(raw); } catch (e) { console.error(e); }
     }
 
-    let intervalId;
+    const intervalRef = useRef(null);
 
     const fetchRemote = () => {
       if (!localUrl) return;
@@ -56,17 +59,41 @@ export const PatientProvider = ({ children }) => {
         });
     };
 
+    const startPolling = () => {
+      if (intervalRef.current) clearInterval(intervalRef.current);
+      intervalRef.current = setInterval(fetchRemote, POLL_INTERVAL_MS);
+    };
+
+    const stopPolling = () => {
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+        intervalRef.current = null;
+      }
+    };
+
+    const handleVisibilityChange = () => {
+      if (document.hidden) {
+        stopPolling();
+      } else {
+        // When tab becomes visible, fetch immediately then resume interval
+        fetchRemote();
+        startPolling();
+      }
+    };
+
     if (localUrl) {
       setIsSyncing(true);
       fetchRemote();
-      intervalId = setInterval(fetchRemote, 10000);
+      startPolling();
+      document.addEventListener('visibilitychange', handleVisibilityChange);
     } else {
       setPatients(localPatients);
       initialized.current = true;
     }
 
     return () => {
-      if (intervalId) clearInterval(intervalId);
+      stopPolling();
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
   }, []);
 
