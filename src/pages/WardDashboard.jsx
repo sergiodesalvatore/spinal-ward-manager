@@ -252,12 +252,18 @@ const WardDashboard = () => {
                          <div className="relative w-11 h-6 bg-surface-container-high rounded-full peer-checked:bg-secondary after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:w-5 after:h-5 after:bg-white after:rounded-full after:transition-all peer-checked:after:translate-x-5" />
                        </label>
                     </td>
-                    <td className="px-4 py-5 text-center">
-                       {patient.diariaUpdated ? (
-                         <span className="material-symbols-outlined text-secondary" style={{ fontVariationSettings: "'FILL' 1" }}>check_circle</span>
-                       ) : (
-                         <span className="material-symbols-outlined text-outline-variant">radio_button_unchecked</span>
-                       )}
+                    <td className="px-4 py-5 text-center" onClick={(e) => e.stopPropagation()}>
+                        <button
+                          onClick={() => updatePatient(patient.id, { diariaUpdated: !patient.diariaUpdated })}
+                          className="hover:opacity-70 transition-opacity active:scale-95"
+                          title={patient.diariaUpdated ? 'Segna come non aggiornato' : 'Segna come aggiornato'}
+                        >
+                          {patient.diariaUpdated ? (
+                            <span className="material-symbols-outlined text-secondary" style={{ fontVariationSettings: "'FILL' 1" }}>check_circle</span>
+                          ) : (
+                            <span className="material-symbols-outlined text-outline-variant hover:text-secondary transition-colors">radio_button_unchecked</span>
+                          )}
+                        </button>
                     </td>
                     <td className="px-4 py-3 text-center" onClick={(e) => e.stopPropagation()}>
                        {(() => {
