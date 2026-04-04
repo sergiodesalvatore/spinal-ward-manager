@@ -15,6 +15,7 @@ export const PatientProvider = ({ children }) => {
   const [syncApiKey, setSyncApiKey] = useState('');
   const [isSyncing, setIsSyncing] = useState(false);
   const initialized = useRef(false);
+  const intervalRef = useRef(null);
 
   useEffect(() => {
     let localUrl = localStorage.getItem(SYNC_URL_KEY) || 'https://api.jsonbin.io/v3/b/69ce73b8856a682189f28c19';
@@ -32,8 +33,6 @@ export const PatientProvider = ({ children }) => {
     if (raw) {
       try { localPatients = JSON.parse(raw); } catch (e) { console.error(e); }
     }
-
-    const intervalRef = useRef(null);
 
     const fetchRemote = () => {
       if (!localUrl) return;
