@@ -13,17 +13,20 @@ const WardDashboard = () => {
 
   const daysSinceOp = (p) => Math.floor((new Date() - new Date(p.operationDate)) / (1000 * 60 * 60 * 24));
 
-  // RX status: 'pending' = <48h, 'needed' = >=48h not done, 'done' = done
+  // RX ui status based on rxStatus field (same field used in PatientDetailPage)
+  // 'hidden' = <48h, 'needed' = >=48h not requested, 'requested' = requested not done, 'done' = Eseguita
   const getRxStatus = (p) => {
-    if (p.rxDone) return 'done';
-    return daysSinceOp(p) >= 2 ? 'needed' : 'pending';
+    if (daysSinceOp(p) < 2) return 'hidden';
+    if (p.rxStatus === 'Eseguita') return 'done';
+    if (p.rxStatus === 'Richiesta') return 'requested';
+    return 'needed'; // null / 'Non Richiesta'
   };
 
   const hasPendingTasks = (p) => {
     if (!p.diariaUpdated) return true;
     const days = daysSinceOp(p);
     if (p.hasCV && days >= 2) return true;
-    if (!p.rxDone && days >= 2) return true;
+    if (days >= 2 && p.rxStatus !== 'Eseguita') return true;
     return false;
   };
 
@@ -206,7 +209,7 @@ const WardDashboard = () => {
                             <div className="absolute z-10 mt-1 w-56 bg-surface-container-high text-on-surface p-2 rounded shadow-lg">
                               {!patient.diariaUpdated && <p className="text-sm py-0.5">📋 Diaria non aggiornata</p>}
                               {patient.hasCV && daysSinceOp(patient) >= 2 && <p className="text-sm py-0.5">🩺 CV da rimuovere ({daysSinceOp(patient)} gg)</p>}
-                              {!patient.rxDone && daysSinceOp(patient) >= 2 && <p className="text-sm py-0.5">🩻 RX da richiedere</p>}
+                              {daysSinceOp(patient) >= 2 && patient.rxStatus !== 'Eseguita' && <p className="text-sm py-0.5">🩻 RX da richiedere</p>}
                             </div>
                           )}
                           </div>
@@ -259,23 +262,39 @@ const WardDashboard = () => {
                     <td className="px-4 py-3 text-center" onClick={(e) => e.stopPropagation()}>
                        {(() => {
                          const status = getRxStatus(patient);
+                         if (status === 'hidden') return (
+                           <span className="text-outline-variant text-xs">–</span>
+                         );
                          if (status === 'done') return (
-                           <button onClick={() => updatePatient(patient.id, { rxDone: false })} className="flex items-center gap-1 mx-auto text-secondary text-xs font-bold" title="RX eseguita (clicca per annullare)">
+                           <button
+                             onClick={() => updatePatient(patient.id, { rxStatus: 'Richiesta' })}
+                             className="flex items-center gap-1 mx-auto text-secondary text-xs font-bold"
+                             title="RX eseguita – clicca per tornare a Richiesta"
+                           >
                              <span className="material-symbols-outlined text-base" style={{ fontVariationSettings: "'FILL' 1" }}>radiology</span>
                              <span>Eseguita</span>
                            </button>
                          );
-                         if (status === 'needed') return (
-                           <button onClick={() => updatePatient(patient.id, { rxDone: true })} className="flex items-center gap-1 mx-auto text-error text-xs font-bold animate-pulse" title="RX da richiedere (clicca per segnare come eseguita)">
+                         if (status === 'requested') return (
+                           <button
+                             onClick={() => updatePatient(patient.id, { rxStatus: 'Eseguita' })}
+                             className="flex items-center gap-1 mx-auto text-warning text-xs font-bold"
+                             title="RX richiesta – clicca per segnare come eseguita"
+                           >
                              <span className="material-symbols-outlined text-base">radiology</span>
                              <span>Richiesta</span>
                            </button>
                          );
+                         // needed
                          return (
-                           <span className="flex items-center gap-1 mx-auto text-outline-variant text-xs" title="RX non ancora necessaria">
+                           <button
+                             onClick={() => updatePatient(patient.id, { rxStatus: 'Richiesta' })}
+                             className="flex items-center gap-1 mx-auto text-error text-xs font-bold animate-pulse"
+                             title="RX da richiedere – clicca per segnare come richiesta"
+                           >
                              <span className="material-symbols-outlined text-base">radiology</span>
-                             <span>Presto</span>
-                           </span>
+                             <span>Da fare</span>
+                           </button>
                          );
                        })()}
                     </td>
