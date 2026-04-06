@@ -233,6 +233,20 @@ const PatientDetailPage = () => {
                     </label>
                   </div>
                 </div>
+
+                {/* Dimissione Scritta - ONLY AFTER 48H */}
+                {is48hPassed && (
+                  <div className="bg-surface-container-lowest p-5 rounded-xl shadow-sm flex flex-col space-y-4 border-l-4 border-[#7C4DFF]">
+                    <div className="space-y-1">
+                      <p className="text-[10px] font-bold text-on-surface-variant uppercase tracking-widest">Fine Percorso</p>
+                      <p className="text-sm font-bold text-on-surface">Dimissione Scritta</p>
+                    </div>
+                    <label className="flex items-center p-2 rounded-lg hover:bg-surface-container-low transition-colors cursor-pointer group">
+                      <input type="checkbox" checked={!!patient.writtenDischarge} onChange={(e) => handleUpdate('writtenDischarge', e.target.checked)} className="w-5 h-5 rounded border-outline text-[#7C4DFF] focus:ring-[#7C4DFF] transition-all custom-checkbox" />
+                      <span className="ml-3 text-sm font-medium text-on-surface">Pronta per la firma</span>
+                    </label>
+                  </div>
+                )}
                 
               </div>
             </div>

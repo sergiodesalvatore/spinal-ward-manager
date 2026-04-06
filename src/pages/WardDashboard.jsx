@@ -164,6 +164,22 @@ const WardDashboard = () => {
                   </button>
                 </div>
 
+                {/* Dimissione Toggle - ONLY AFTER 48H */}
+                {daysSinceOp(patient) >= 2 && (
+                  <button 
+                    onClick={(e) => { e.stopPropagation(); updatePatient(patient.id, { writtenDischarge: !patient.writtenDischarge }); }}
+                    className={`flex items-center justify-between p-4 rounded-xl transition-all mt-1 ${patient.writtenDischarge ? 'bg-[#7C4DFF] text-white shadow-md' : 'bg-[#F1F5F9] text-gray-500'}`}
+                  >
+                    <div className="flex items-center gap-2">
+                      <span className="material-symbols-outlined text-[18px]">description</span>
+                      <span className="text-[11px] font-black uppercase tracking-widest">DIMISS. SCRITTA</span>
+                    </div>
+                    <div className={`w-8 h-4 rounded-full relative transition-all ${patient.writtenDischarge ? 'bg-white/40' : 'bg-gray-300'}`}>
+                      <div className={`absolute top-0.5 w-3 h-3 rounded-full bg-white transition-all shadow-sm ${patient.writtenDischarge ? 'left-4.5' : 'left-0.5'}`}></div>
+                    </div>
+                  </button>
+                )}
+
                 {/* RX Row - Integrated if needed, or separate pulse */}
                 {daysSinceOp(patient) >= 2 && patient.rxStatus !== 'Eseguita' && (
                   <button 
@@ -249,9 +265,10 @@ const WardDashboard = () => {
                   <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-on-surface-variant">Nome & Cognome</th>
                   <th className="px-4 py-4 text-xs font-bold uppercase tracking-wider text-on-surface-variant">Letto</th>
                   <th className="px-4 py-4 text-xs font-bold uppercase tracking-wider text-on-surface-variant">Stato</th>
-                  <th className="px-4 py-4 text-xs font-bold uppercase tracking-wider text-on-surface-variant text-center">Drenaggio</th>
-                  <th className="px-4 py-4 text-xs font-bold uppercase tracking-wider text-on-surface-variant text-center">CV</th>
-                  <th className="px-4 py-4 text-xs font-bold uppercase tracking-wider text-on-surface-variant text-center">Diaria</th>
+                  <th className="px-4 py-3 text-center text-[10px] font-bold text-on-surface-variant uppercase tracking-widest">Dren.</th>
+                  <th className="px-4 py-3 text-center text-[10px] font-bold text-on-surface-variant uppercase tracking-widest">CV</th>
+                  <th className="px-4 py-3 text-center text-[10px] font-bold text-on-surface-variant uppercase tracking-widest">Dimiss.</th>
+                  <th className="px-4 py-3 text-center text-[10px] font-bold text-on-surface-variant uppercase tracking-widest">Diaria</th>
                   <th className="px-4 py-4 text-xs font-bold uppercase tracking-wider text-on-surface-variant text-center">RX</th>
                   <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-on-surface-variant text-right">Azioni</th>
                 </tr>
@@ -316,6 +333,17 @@ const WardDashboard = () => {
                          <input type="checkbox" className="sr-only peer" checked={!!patient.hasCV} onChange={(e) => updatePatient(patient.id, { hasCV: e.target.checked })} />
                          <div className="relative w-11 h-6 bg-surface-container-high rounded-full peer-checked:bg-secondary after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:w-5 after:h-5 after:bg-white after:rounded-full after:transition-all peer-checked:after:translate-x-5" />
                        </label>
+                    </td>
+                    <td className="px-4 py-5 text-center" onClick={(e) => e.stopPropagation()}>
+                       {/* Dimissione toggle */}
+                       {daysSinceOp(patient) >= 2 ? (
+                         <label className="inline-flex items-center cursor-pointer">
+                           <input type="checkbox" className="sr-only peer" checked={!!patient.writtenDischarge} onChange={(e) => updatePatient(patient.id, { writtenDischarge: e.target.checked })} />
+                           <div className="relative w-11 h-6 bg-surface-container-high rounded-full peer-checked:bg-[#7C4DFF] after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:w-5 after:h-5 after:bg-white after:rounded-full after:transition-all peer-checked:after:translate-x-5" />
+                         </label>
+                       ) : (
+                         <span className="text-outline-variant text-[10px] font-medium">–</span>
+                       )}
                     </td>
                     <td className="px-4 py-5 text-center" onClick={(e) => e.stopPropagation()}>
                         <button
