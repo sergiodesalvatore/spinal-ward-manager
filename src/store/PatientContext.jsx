@@ -16,6 +16,7 @@ export const PatientProvider = ({ children }) => {
   const [isSyncing, setIsSyncing] = useState(false);
   const initialized = useRef(false);
   const intervalRef = useRef(null);
+  const lastLocalUpdateAt = useRef(0);
 
   useEffect(() => {
     let localUrl = localStorage.getItem(SYNC_URL_KEY) || 'https://api.jsonbin.io/v3/b/69ce73b8856a682189f28c19';
@@ -41,6 +42,9 @@ export const PatientProvider = ({ children }) => {
         .then(data => {
           const fetchedData = data.record || data;
           if (Array.isArray(fetchedData)) {
+            // IGNORE poll results for 4 seconds after a local update to prevent flicker
+            if (Date.now() - lastLocalUpdateAt.current < 4000) return;
+
             // Need to check if there's actually a change to prevent re-renders when nothing changed
             setPatients(prev => {
               if (JSON.stringify(prev) !== JSON.stringify(fetchedData)) {
@@ -130,6 +134,7 @@ export const PatientProvider = ({ children }) => {
   const addPatient = (patient) => saveToStorage([...patients, patient]);
 
   const updatePatient = (id, newFlags) => {
+    lastLocalUpdateAt.current = Date.now();
     const updated = patients.map(p => {
       if (p.id === id) {
         const updatedObj = { ...p, ...newFlags };

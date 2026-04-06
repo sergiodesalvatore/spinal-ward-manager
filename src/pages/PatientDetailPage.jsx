@@ -51,22 +51,63 @@ const PatientDetailPage = () => {
         {/* Hero Section */}
         <section className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4 mt-2 md:mt-0">
           <div>
-             <span className="text-xs font-bold uppercase tracking-widest text-on-surface-variant font-label md:hidden block mb-1">Letto {patient.bedNumber}</span>
+             <div className="md:hidden flex items-center gap-2 mb-2">
+               <span className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">Letto</span>
+               <input 
+                 type="text" 
+                 value={patient.bedNumber || ''} 
+                 onChange={(e) => handleUpdate('bedNumber', e.target.value)}
+                 className="w-12 bg-surface-container-high rounded px-2 py-0.5 text-xs font-bold text-on-surface border-none"
+               />
+             </div>
              <h2 className="text-3xl font-extrabold font-headline text-on-surface tracking-tight">{patient.firstName} {patient.lastName}</h2>
-             <p className="text-on-surface-variant font-medium hidden md:flex items-center mt-1">
-                <span className="material-symbols-outlined text-sm mr-1">bed</span>
-                Numero Letto: <span className="text-on-surface font-bold ml-1">{patient.bedNumber}</span>
-             </p>
-             <p className="text-sm font-bold text-primary mt-1">{patient.diagnosis}</p>
+             <div className="text-on-surface-variant font-medium hidden md:flex items-center mt-2 gap-4">
+                <div className="flex items-center">
+                  <span className="material-symbols-outlined text-sm mr-1">bed</span>
+                  Numero Letto: 
+                  <input 
+                    type="text" 
+                    value={patient.bedNumber || ''} 
+                    onChange={(e) => handleUpdate('bedNumber', e.target.value)}
+                    className="ml-2 w-16 bg-surface-container-high rounded px-2 py-1 text-sm font-bold text-on-surface border-none focus:ring-2 focus:ring-primary/20"
+                  />
+                </div>
+                <div className="flex items-center">
+                  <span className="material-symbols-outlined text-sm mr-1">location_on</span>
+                  Stato:
+                  <select 
+                    value={patient.location} 
+                    onChange={(e) => handleUpdate('location', e.target.value)}
+                    className="ml-2 bg-surface-container-high rounded px-2 py-1 text-sm font-bold text-on-surface border-none focus:ring-2 focus:ring-primary/20 cursor-pointer"
+                  >
+                    <option value="Terapia Intensiva">Terapia Intensiva</option>
+                    <option value="Reparto">Reparto</option>
+                  </select>
+                </div>
+             </div>
+             <p className="text-sm font-bold text-primary mt-2">{patient.diagnosis}</p>
           </div>
-          <div className="flex items-center gap-3 w-full md:w-auto mt-2 md:mt-0 justify-between md:justify-end">
-             <span className="px-3 py-1 bg-secondary-container text-on-secondary-container text-xs font-bold rounded-full uppercase tracking-wider">
-               Giorno Post-Op {postOpDays}
-             </span>
-             <button onClick={handleDischarge} className="bg-surface-container-high text-on-surface-variant px-4 py-2 md:px-6 md:py-2.5 rounded-xl font-bold text-sm shadow-sm hover:opacity-90 active:scale-95 transition-all flex items-center">
-               <span className="material-symbols-outlined md:mr-2 text-sm">inventory_2</span>
-               <span className="hidden md:inline">Dimetti e Archivia</span>
-             </button>
+          <div className="flex flex-col items-end gap-2 w-full md:w-auto mt-2 md:mt-0">
+             <div className="flex items-center gap-3 w-full justify-between md:justify-end">
+               <span className="px-3 py-1 bg-secondary-container text-on-secondary-container text-xs font-bold rounded-full uppercase tracking-wider">
+                 Giorno Post-Op {postOpDays}
+               </span>
+               <button onClick={handleDischarge} className="bg-surface-container-high text-on-surface-variant px-4 py-2 md:px-6 md:py-2.5 rounded-xl font-bold text-sm shadow-sm hover:opacity-90 active:scale-95 transition-all flex items-center">
+                 <span className="material-symbols-outlined md:mr-2 text-sm">inventory_2</span>
+                 <span className="hidden md:inline">Dimetti e Archivia</span>
+               </button>
+             </div>
+             {/* Mobile-only Location Selector */}
+             <div className="md:hidden w-full">
+                <select 
+                  value={patient.location} 
+                  onChange={(e) => handleUpdate('location', e.target.value)}
+                  className={`w-full bg-surface-container-high rounded-xl px-4 py-2 text-xs font-bold uppercase tracking-wider border-none focus:ring-2 focus:ring-primary/20 ${patient.location === 'Terapia Intensiva' ? 'text-error' : 'text-primary'}`}
+                >
+                  <option value="Terapia Intensiva">Terapia Intensiva</option>
+                  <option value="Reparto">Reparto</option>
+                </select>
+             </div>
           </div>
         </section>
 

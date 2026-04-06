@@ -94,12 +94,23 @@ const WardDashboard = () => {
                       {patient.firstName} {patient.lastName}
                     </h3>
                     <div className="flex items-center gap-2 mt-1">
-                      <span className="px-2 py-0.5 bg-gray-100 text-[10px] font-bold text-gray-500 rounded uppercase tracking-wider">
+                      <div 
+                        onClick={(e) => { e.stopPropagation(); updatePatient(patient.id, { location: patient.location === 'Reparto' ? 'Terapia Intensiva' : 'Reparto' }); }}
+                        className={`px-2 py-0.5 text-[10px] font-bold rounded uppercase tracking-wider cursor-pointer active:scale-95 transition-transform ${patient.location === 'Reparto' ? 'bg-secondary-container text-on-secondary-container' : 'bg-error-container text-on-error-container'}`}
+                      >
                         {patient.location === 'Reparto' ? 'REPARTO' : 'INTENSIVA'}
-                      </span>
-                      <span className="text-xs font-bold text-gray-400">
-                        BED {patient.bedNumber || 'N/A'}
-                      </span>
+                      </div>
+                      <div className="flex items-center gap-1.5 ml-1">
+                        <span className="text-[10px] font-bold text-gray-400">BED</span>
+                        <input 
+                          type="text" 
+                          value={patient.bedNumber || ''} 
+                          onChange={(e) => updatePatient(patient.id, { bedNumber: e.target.value })}
+                          onClick={(e) => e.stopPropagation()}
+                          placeholder="-"
+                          className="w-10 bg-gray-50 border border-gray-200 rounded px-1.5 py-0.5 text-xs font-bold text-gray-800 focus:ring-1 focus:ring-primary focus:border-primary text-center"
+                        />
+                      </div>
                     </div>
                   </div>
                   
