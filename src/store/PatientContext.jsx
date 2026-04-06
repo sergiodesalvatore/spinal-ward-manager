@@ -130,7 +130,17 @@ export const PatientProvider = ({ children }) => {
   const addPatient = (patient) => saveToStorage([...patients, patient]);
 
   const updatePatient = (id, newFlags) => {
-    const updated = patients.map(p => p.id === id ? { ...p, ...newFlags } : p);
+    const updated = patients.map(p => {
+      if (p.id === id) {
+        const updatedObj = { ...p, ...newFlags };
+        // If diariaUpdated is being set to true, add/update the timestamp
+        if (newFlags.diariaUpdated === true) {
+          updatedObj.diariaUpdatedAt = new Date().toISOString();
+        }
+        return updatedObj;
+      }
+      return p;
+    });
     saveToStorage(updated);
   };
 

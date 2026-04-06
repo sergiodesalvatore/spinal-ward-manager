@@ -79,92 +79,106 @@ const WardDashboard = () => {
         </div>
 
         {/* Mobile View: Cards */}
-        <div className="md:hidden space-y-4">
+        <div className="md:hidden flex flex-col gap-4 pb-32">
           {sortedPatients.map(patient => (
-            <div key={patient.id} className="bg-surface-container-lowest hover:bg-surface-container-low border border-outline-variant/10 rounded-xl p-4 shadow-[0_4px_12px_rgba(25,28,29,0.02)] transition-all active:scale-[0.98]" onClick={() => navigate(`/patient/${patient.id}`)}>
-              {/* Row 1: Header - Avatar, Name, Diaria */}
-              <div className="flex justify-between items-start mb-4 gap-3">
-                <div className="flex gap-3">
-                  <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm shrink-0 ${patient.location === 'Terapia Intensiva' ? 'bg-primary/10 text-primary' : 'bg-secondary/10 text-secondary'}`}>
-                    {getInitials(patient.firstName, patient.lastName)}
-                  </div>
-                  <div>
-                    <h2 className="text-base font-bold text-on-surface relative inline-block leading-tight mt-0.5">
+            <div 
+              key={patient.id} 
+              onClick={() => navigate(`/patient/${patient.id}`)}
+              className="bg-white rounded-2xl shadow-[0_2px_12px_rgba(0,0,0,0.06)] overflow-hidden border border-gray-100 transition-all active:scale-[0.98]"
+            >
+              <div className="p-5 flex flex-col gap-4">
+                {/* Card Header: Name, Badge, Status Icon */}
+                <div className="flex items-start justify-between">
+                  <div className="flex flex-col gap-0.5">
+                    <h3 className="text-xl font-bold text-gray-900 leading-tight">
                       {patient.firstName} {patient.lastName}
-                      {hasPendingTasks(patient) && (
-                        <button type="button" className="relative w-2 h-2 bg-error rounded-full ml-2" onClick={(e) => { e.stopPropagation(); setTooltipPatientId(tooltipPatientId === patient.id ? null : patient.id); }} title="Task pendenti"></button>
-                      )}
-                    </h2>
-                    {tooltipPatientId === patient.id && (
-                      <div className="absolute z-10 mt-1 w-48 bg-surface-container-high text-on-surface p-2 rounded shadow-lg">
-                        <p className="text-sm">{!patient.diariaUpdated && "Diaria non aggiornata"}</p>
-                        {patient.hasCV && (() => { const diff = Math.ceil((new Date() - new Date(patient.operationDate)) / (1000*60*60*24)); return diff >= 2 ? <p className="text-sm">{`CV da rimuovere (${diff} gg)`}</p> : null; })()}
+                    </h3>
+                    <div className="flex items-center gap-2 mt-1">
+                      <span className="px-2 py-0.5 bg-gray-100 text-[10px] font-bold text-gray-500 rounded uppercase tracking-wider">
+                        {patient.location === 'Reparto' ? 'REPARTO' : 'INTENSIVA'}
+                      </span>
+                      <span className="text-xs font-bold text-gray-400">
+                        BED {patient.bedNumber || 'N/A'}
+                      </span>
+                    </div>
+                  </div>
+                  
+                  {/* Big Status Radio/Check Icon */}
+                  <button 
+                    onClick={(e) => { e.stopPropagation(); updatePatient(patient.id, { diariaUpdated: !patient.diariaUpdated, diariaUpdatedAt: new Date().toISOString() }); }}
+                    className="shrink-0 p-1"
+                  >
+                    {patient.diariaUpdated ? (
+                      <div className="w-8 h-8 rounded-full bg-[#3CC09E] flex items-center justify-center text-white">
+                        <span className="material-symbols-outlined text-[20px] font-bold">check</span>
                       </div>
+                    ) : (
+                      <div className="w-8 h-8 rounded-full border-2 border-gray-200 flex items-center justify-center"></div>
                     )}
-                    <div className="text-[10px] text-on-surface-variant font-medium mt-1">Intervento: {new Date(patient.operationDate).toLocaleDateString()}</div>
-                  </div>
+                  </button>
                 </div>
-                
-                <button 
-                  onClick={(e) => { e.stopPropagation(); updatePatient(patient.id, { diariaUpdated: !patient.diariaUpdated }); }}
-                  className="p-1 rounded-full active:scale-95 transition-transform shrink-0"
-                >
+
+                {/* Alert Banner: CV > 48h */}
+                {patient.hasCV && daysSinceOp(patient) >= 2 && (
+                  <div className="bg-[#FFE5E5] p-3 rounded-xl flex items-center gap-3 border border-[#FFD1D1]">
+                    <span className="material-symbols-outlined text-[#D32F2F] text-[24px]">warning</span>
+                    <p className="text-[11px] font-extrabold text-[#9B1C1C] uppercase tracking-tighter leading-none">
+                      RIMUOVERE CV: SUPERATE 48 ORE
+                    </p>
+                  </div>
+                )}
+
+                {/* Control Toggles: DRAINAGE & CV */}
+                <div className="grid grid-cols-2 gap-3 mt-1">
+                  {/* Drainage Toggle */}
+                  <button 
+                    onClick={(e) => { e.stopPropagation(); updatePatient(patient.id, { hasDrainage: !patient.hasDrainage }); }}
+                    className={`flex items-center justify-between p-4 rounded-xl transition-all ${patient.hasDrainage ? 'bg-[#005FA3] text-white shadow-md' : 'bg-[#F1F5F9] text-gray-500'}`}
+                  >
+                    <span className="text-[11px] font-black uppercase tracking-widest">DRENAGGIO</span>
+                    <div className={`w-8 h-4 rounded-full relative transition-all ${patient.hasDrainage ? 'bg-white/40' : 'bg-gray-300'}`}>
+                      <div className={`absolute top-0.5 w-3 h-3 rounded-full bg-white transition-all shadow-sm ${patient.hasDrainage ? 'left-4.5' : 'left-0.5'}`}></div>
+                    </div>
+                  </button>
+
+                  {/* CV Access Toggle */}
+                  <button 
+                    onClick={(e) => { e.stopPropagation(); updatePatient(patient.id, { hasCV: !patient.hasCV }); }}
+                    className={`flex items-center justify-between p-4 rounded-xl transition-all ${patient.hasCV ? 'bg-[#3CC09E] text-white shadow-md' : 'bg-[#F1F5F9] text-gray-500'}`}
+                  >
+                    <span className="text-[11px] font-black uppercase tracking-widest">CV ACCESS</span>
+                    <div className={`w-8 h-4 rounded-full relative transition-all ${patient.hasCV ? 'bg-white/40' : 'bg-gray-300'}`}>
+                      <div className={`absolute top-0.5 w-3 h-3 rounded-full bg-white transition-all shadow-sm ${patient.hasCV ? 'left-4.5' : 'left-0.5'}`}></div>
+                    </div>
+                  </button>
+                </div>
+
+                {/* RX Row - Integrated if needed, or separate pulse */}
+                {daysSinceOp(patient) >= 2 && patient.rxStatus !== 'Eseguita' && (
+                  <button 
+                    onClick={(e) => { e.stopPropagation(); updatePatient(patient.id, { rxStatus: 'Richiesta' }); }}
+                    className="flex items-center justify-center gap-2 p-3 bg-red-50 text-red-600 rounded-xl border border-red-100 animate-pulse"
+                  >
+                    <span className="material-symbols-outlined text-sm">radiology</span>
+                    <span className="text-[11px] font-bold uppercase">RX DA RICHIEDERE</span>
+                  </button>
+                )}
+
+                {/* Status Footer: Diaria */}
+                <div className="pt-4 border-t border-gray-100 flex items-center gap-2 mt-1">
+                  <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">DIARIA:</span>
                   {patient.diariaUpdated ? (
-                    <span className="material-symbols-outlined text-[24px] text-secondary" style={{ fontVariationSettings: "'FILL' 1" }}>check_circle</span>
+                    <div className="flex items-center gap-1.5">
+                      <span className="material-symbols-outlined text-[#3CC09E] text-[14px] font-bold">check</span>
+                      <span className="text-[11px] font-bold text-[#3CC09E]">
+                        Completata {patient.diariaUpdatedAt ? new Date(patient.diariaUpdatedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'OGGI'}
+                      </span>
+                    </div>
                   ) : (
-                    <span className="material-symbols-outlined text-[24px] text-outline-variant">radio_button_unchecked</span>
+                    <span className="text-[11px] font-bold text-gray-400">Da aggiornare</span>
                   )}
-                </button>
+                </div>
               </div>
-
-              {/* Row 2: Editable Info (Letto & Stato) */}
-              <div className="flex items-center gap-3 bg-surface-container-high/20 p-2.5 rounded-lg mb-4 border border-outline-variant/5">
-                <div className="flex items-center gap-2">
-                  <span className="text-[10px] font-bold text-on-surface-variant uppercase tracking-widest shrink-0">Letto</span>
-                  <input 
-                    type="text" 
-                    value={patient.bedNumber}
-                    onChange={(e) => updatePatient(patient.id, { bedNumber: e.target.value })}
-                    onClick={(e) => e.stopPropagation()}
-                    className="w-12 bg-surface-bright rounded px-2 py-1 text-xs font-bold text-on-surface border border-outline-variant/10 focus:ring-1 focus:ring-primary/20 focus:border-primary text-center"
-                  />
-                </div>
-                <div className="h-6 w-[1px] bg-outline-variant/20"></div>
-                <select
-                  value={patient.location}
-                  onChange={(e) => updatePatient(patient.id, { location: e.target.value })}
-                  onClick={(e) => e.stopPropagation()}
-                  className={`flex-1 text-[10px] font-bold uppercase tracking-wider py-1.5 px-3 pr-6 rounded-md appearance-none bg-no-repeat cursor-pointer border border-outline-variant/5 shadow-sm focus:ring-1 focus:ring-primary/20 ${patient.location === 'Terapia Intensiva' ? 'bg-error-container text-on-error-container' : 'bg-secondary-container text-on-secondary-container'}`}
-                  style={{ backgroundImage: "url(\"data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e\")", backgroundPosition: "right 0.3rem center", backgroundSize: "1.2em 1.2em" }}
-                >
-                  <option value="Terapia Intensiva">Terapia Intensiva</option>
-                  <option value="Reparto">Reparto</option>
-                </select>
-              </div>
-
-              {/* Row 3: Presidi UI matching Desktop checkboxes */}
-                <div className="flex items-center gap-6 px-1">
-                  <div className="flex items-center gap-2">
-                    <label className="inline-flex items-center cursor-pointer" onClick={(e) => e.stopPropagation()}>
-                      <input type="checkbox" className="sr-only peer" checked={patient.hasDrainage} onChange={(e) => updatePatient(patient.id, { hasDrainage: e.target.checked })} />
-                      <div className="w-11 h-6 bg-surface-container-high rounded-full peer-checked:bg-secondary after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:w-5 after:h-5 after:bg-white after:rounded-full after:transition-all peer-checked:after:translate-x-5" />
-                    </label>
-                    <span className="text-[10px] font-bold text-on-surface-variant uppercase tracking-widest leading-none">Drenaggio</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <label className="inline-flex items-center cursor-pointer" onClick={(e) => e.stopPropagation()}>
-                      <input type="checkbox" className="sr-only peer" checked={patient.hasCV} onChange={(e) => updatePatient(patient.id, { hasCV: e.target.checked })} />
-                      <div className="w-11 h-6 bg-surface-container-high rounded-full peer-checked:bg-secondary after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:w-5 after:h-5 after:bg-white after:rounded-full after:transition-all peer-checked:after:translate-x-5" />
-                    </label>
-                    <span className="text-[10px] font-bold text-on-surface-variant uppercase tracking-widest leading-none">CV Access</span>
-                  </div>
-                </div>
-                {/* RX placeholder for mobile */}
-                <div className="flex items-center justify-center mt-2">
-                  <div className="w-12 h-12 bg-surface-container-low rounded flex items-center justify-center text-on-surface-variant">
-                    RX
-                  </div>
-                </div>
             </div>
           ))}
           {sortedPatients.length === 0 && (
@@ -173,6 +187,46 @@ const WardDashboard = () => {
                <p className="text-sm font-bold">Nessun paziente in questa categoria.</p>
              </div>
           )}
+        </div>
+
+        {/* Floating Bottom Navigation for Mobile */}
+        <div className="md:hidden fixed bottom-0 left-0 right-0 p-4 pb-8 bg-white border-t border-gray-100 flex justify-around items-center gap-2 z-50 shadow-[0_-4px_20px_rgba(0,0,0,0.05)] rounded-t-3xl">
+          <NavLink 
+            to="/" 
+            className={({ isActive }) => `flex flex-col items-center gap-1 flex-1 py-1 transition-all ${isActive ? 'text-[#005FA3]' : 'text-gray-400'}`}
+          >
+            <div className={`w-12 h-12 flex flex-col items-center justify-center rounded-2xl transition-all ${filter === 'All' ? 'bg-[#005FA3] text-white shadow-lg' : 'bg-transparent'}`}>
+              <span className="material-symbols-outlined text-[24px]">group</span>
+              <span className="text-[9px] font-black uppercase tracking-tighter mt-0.5">ATTIVI</span>
+            </div>
+          </NavLink>
+
+          <NavLink 
+            to="/add" 
+            className="flex flex-col items-center gap-1 flex-1 py-1 text-gray-400"
+          >
+            <div className="w-12 h-12 flex flex-col items-center justify-center rounded-2xl bg-gray-50 border border-gray-100">
+              <span className="material-symbols-outlined text-[24px]">add_circle</span>
+              <span className="text-[9px] font-black uppercase tracking-tighter mt-0.5">NUOVO</span>
+            </div>
+          </NavLink>
+
+          <NavLink 
+            to="/archive" 
+            className={({ isActive }) => `flex flex-col items-center gap-1 flex-1 py-1 transition-all ${isActive ? 'text-[#005FA3]' : 'text-gray-400'}`}
+          >
+            <div className="w-12 h-12 flex flex-col items-center justify-center rounded-2xl bg-gray-50 border border-gray-100">
+              <span className="material-symbols-outlined text-[24px]">archive</span>
+              <span className="text-[9px] font-black uppercase tracking-tighter mt-0.5">ARCHIVIO</span>
+            </div>
+          </NavLink>
+        </div>
+
+        {/* Search FAB */}
+        <div className="md:hidden fixed bottom-24 right-4 z-40">
+          <button className="w-14 h-14 rounded-3xl bg-[#005FA3] text-white shadow-xl flex items-center justify-center active:scale-95 transition-transform">
+            <span className="material-symbols-outlined text-[28px]">search</span>
+          </button>
         </div>
 
         {/* Desktop View: Table */}
