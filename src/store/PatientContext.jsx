@@ -1,144 +1,79 @@
 import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
-
-// Polling interval (ms). Can be overridden via REACT_APP_POLL_INTERVAL_MS env variable.
-const POLL_INTERVAL_MS = Number(process.env.REACT_APP_POLL_INTERVAL_MS) || 2000;
+import { supabase } from '../lib/supabase';
 
 const STORAGE_KEY = 'spine-ward-patients';
-const SYNC_URL_KEY = 'spine-ward-sync-url';
-const SYNC_KEY_KEY = 'spine-ward-sync-apikey';
-
 const PatientContext = createContext();
 
 export const PatientProvider = ({ children }) => {
   const [patients, setPatients] = useState([]);
-  const [syncUrl, setSyncUrl] = useState('');
-  const [syncApiKey, setSyncApiKey] = useState('');
   const [isSyncing, setIsSyncing] = useState(false);
   const initialized = useRef(false);
-  const intervalRef = useRef(null);
-  const lastLocalUpdateAt = useRef(0);
-
   useEffect(() => {
-    let localUrl = localStorage.getItem(SYNC_URL_KEY) || 'https://api.jsonbin.io/v3/b/69ce73b8856a682189f28c19';
-    if (localUrl.includes('script.google.com')) {
-      localUrl = '';
-      localStorage.removeItem(SYNC_URL_KEY);
-    }
-    const localKey = localStorage.getItem(SYNC_KEY_KEY) || '$2a$10$RV5cxNNHqP7SYsZfbyEJtOB5/FEj/mnrnC0vS/Ql8b3mWa5WA2f.6';
-    
-    setSyncUrl(localUrl);
-    setSyncApiKey(localKey);
-
-    const raw = localStorage.getItem(STORAGE_KEY);
-    let localPatients = [];
-    if (raw) {
-      try { localPatients = JSON.parse(raw); } catch (e) { console.error(e); }
-    }
-
-    const fetchRemote = () => {
-      if (!localUrl) return;
-      fetch(localUrl, { headers: localKey ? { 'X-Master-Key': localKey } : {} })
-        .then(res => res.json())
-        .then(data => {
-          const fetchedData = data.record || data;
-          if (Array.isArray(fetchedData)) {
-            // IGNORE poll results for 4 seconds after a local update to prevent flicker
-            if (Date.now() - lastLocalUpdateAt.current < 4000) return;
-
-            // Need to check if there's actually a change to prevent re-renders when nothing changed
-            setPatients(prev => {
-              if (JSON.stringify(prev) !== JSON.stringify(fetchedData)) {
-                localStorage.setItem(STORAGE_KEY, JSON.stringify(fetchedData));
-                return fetchedData;
-              }
-              return prev;
-            });
-          }
-        })
-        .catch(err => console.error("Poll failed", err))
-        .finally(() => {
-          setIsSyncing(false);
-          initialized.current = true;
-        });
-    };
-
-    const startPolling = () => {
-      if (intervalRef.current) clearInterval(intervalRef.current);
-      intervalRef.current = setInterval(fetchRemote, POLL_INTERVAL_MS);
-    };
-
-    const stopPolling = () => {
-      if (intervalRef.current) {
-        clearInterval(intervalRef.current);
-        intervalRef.current = null;
-      }
-    };
-
-    const handleVisibilityChange = () => {
-      if (document.hidden) {
-        stopPolling();
-      } else {
-        // When tab becomes visible, fetch immediately then resume interval
-        fetchRemote();
-        startPolling();
-      }
-    };
-
-    if (localUrl) {
+    // Initial fetch from Supabase
+    const fetchPatients = async () => {
       setIsSyncing(true);
-      fetchRemote();
-      startPolling();
-      document.addEventListener('visibilitychange', handleVisibilityChange);
-    } else {
-      setPatients(localPatients);
+      const { data, error } = await supabase
+        .from('patients')
+        .select('*')
+        .order('operationDate', { ascending: false });
+
+      if (error) {
+        console.error("Supabase fetch failed", error);
+        // Fallback to local storage if offline or error
+        const local = localStorage.getItem(STORAGE_KEY);
+        if (local) setPatients(JSON.parse(local));
+      } else {
+        setPatients(data || []);
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+      }
+      setIsSyncing(false);
       initialized.current = true;
-    }
+    };
+
+    fetchPatients();
+
+    // Setup Real-time Subscription
+    const channel = supabase
+      .channel('schema-db-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'patients'
+        },
+        (payload) => {
+          // Whenever something changes on the server, we fetch the fresh list
+          // This handles cases where multiple users update different patients
+          fetchPatients();
+        }
+      )
+      .subscribe();
 
     return () => {
-      stopPolling();
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      supabase.removeChannel(channel);
     };
   }, []);
 
-  const saveToStorage = async (updatedPatients) => {
-    setPatients(updatedPatients);
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(updatedPatients));
-
-    if (syncUrl && initialized.current) {
-      setIsSyncing(true);
-      try {
-        await fetch(syncUrl, {
-          method: 'PUT',
-          headers: { 
-            'Content-Type': 'application/json',
-            'X-Bin-Versioning': 'false',
-            ...(syncApiKey ? { 'X-Master-Key': syncApiKey } : {})
-          },
-          body: JSON.stringify(updatedPatients)
-        });
-      } catch (e) {
-        console.error("Remote save failed", e);
-      } finally {
-        setIsSyncing(false);
-      }
+  const addPatient = async (patient) => {
+    // Optimistic UI
+    const tempPatients = [...patients, patient];
+    setPatients(tempPatients);
+    
+    const { error } = await supabase.from('patients').insert([patient]);
+    if (error) {
+      console.error("Supabase insert failed", error);
+      // Revert if failed
+      setPatients(patients);
     }
   };
 
-  const saveSyncConfig = (url, apiKey) => {
-    setSyncUrl(url);
-    setSyncApiKey(apiKey);
-    localStorage.setItem(SYNC_URL_KEY, url);
-    localStorage.setItem(SYNC_KEY_KEY, apiKey);
-  };
-
-  const addPatient = (patient) => saveToStorage([...patients, patient]);
-
-  const updatePatient = (id, newFlags) => {
-    lastLocalUpdateAt.current = Date.now();
+  const updatePatient = async (id, newFlags) => {
+    // Optimistic UI updates are handled implicitly by keeping local state
+    // But we need to update the server
     const updated = patients.map(p => {
       if (p.id === id) {
         const updatedObj = { ...p, ...newFlags };
-        // If diariaUpdated is being set to true, add/update the timestamp
         if (newFlags.diariaUpdated === true) {
           updatedObj.diariaUpdatedAt = new Date().toISOString();
         }
@@ -146,14 +81,31 @@ export const PatientProvider = ({ children }) => {
       }
       return p;
     });
-    saveToStorage(updated);
+
+    setPatients(updated);
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+
+    const { error } = await supabase
+      .from('patients')
+      .update({ ...newFlags, diariaUpdatedAt: newFlags.diariaUpdated === true ? new Date().toISOString() : undefined })
+      .eq('id', id);
+
+    if (error) {
+      console.error("Supabase update failed", error);
+    }
   };
 
-  const deletePatient = (id) => saveToStorage(patients.filter(p => p.id !== id));
+  const deletePatient = async (id) => {
+    const updated = patients.filter(p => p.id !== id);
+    setPatients(updated);
+    
+    const { error } = await supabase.from('patients').delete().eq('id', id);
+    if (error) console.error("Supabase delete failed", error);
+  };
 
   return (
     <PatientContext.Provider value={{
-      patients, syncUrl, syncApiKey, isSyncing, saveSyncConfig, addPatient, updatePatient, deletePatient
+      patients, isSyncing, addPatient, updatePatient, deletePatient
     }}>
       {children}
     </PatientContext.Provider>
