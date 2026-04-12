@@ -204,7 +204,7 @@ const WardDashboard = () => {
                     }}
                     className={`flex items-center justify-center gap-2 p-3 rounded-xl border transition-all ${
                       patient.rxStatus === 'Richiesta' 
-                        ? 'bg-amber-50 text-amber-600 border-amber-100' 
+                        ? 'bg-emerald-50 text-emerald-600 border-emerald-100' 
                         : 'bg-red-50 text-red-600 border-red-100 animate-pulse'
                     }`}
                   >
