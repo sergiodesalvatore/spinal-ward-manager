@@ -26,6 +26,7 @@ const WardDashboard = () => {
     if (!p.diariaUpdated) return true;
     const days = daysSinceOp(p);
     if (p.hasCV && days >= 2) return true;
+    if (p.hasDrainage && days >= 2) return true;
     if (days >= 2 && p.rxStatus !== 'Eseguita') return true;
     return false;
   };
@@ -43,7 +44,10 @@ const WardDashboard = () => {
 
   const icuCount = activePatients.filter(p => p.location === 'Terapia Intensiva').length;
   // Temporary fake alert logic for visual match
-  const alertCount = activePatients.filter(p => p.hasDrainage || p.hasCV).length; 
+  const alertCount = activePatients.filter(p => {
+    const days = daysSinceOp(p);
+    return (p.hasDrainage && days >= 2) || (p.hasCV && days >= 2);
+  }).length; 
 
   const getInitials = (name, surname) => {
     return `${name?.charAt(0) || ''}${surname?.charAt(0) || ''}`.toUpperCase();
@@ -129,15 +133,25 @@ const WardDashboard = () => {
                   </button>
                 </div>
 
-                {/* Alert Banner: CV > 48h */}
-                {patient.hasCV && daysSinceOp(patient) >= 2 && (
-                  <div className="bg-[#FFE5E5] p-3 rounded-xl flex items-center gap-3 border border-[#FFD1D1]">
-                    <span className="material-symbols-outlined text-[#D32F2F] text-[24px]">warning</span>
-                    <p className="text-[11px] font-extrabold text-[#9B1C1C] uppercase tracking-tighter leading-none">
-                      RIMUOVERE CV: SUPERATE 48 ORE
-                    </p>
-                  </div>
-                )}
+                {/* Alert Banners: CV & DRAINAGE > 48h */}
+                <div className="flex flex-col gap-2">
+                  {patient.hasCV && daysSinceOp(patient) >= 2 && (
+                    <div className="bg-[#FFE5E5] p-3 rounded-xl flex items-center gap-3 border border-[#FFD1D1]">
+                      <span className="material-symbols-outlined text-[#D32F2F] text-[24px]">warning</span>
+                      <p className="text-[11px] font-extrabold text-[#9B1C1C] uppercase tracking-tighter leading-none">
+                        RIMUOVERE CV: SUPERATE 48 ORE
+                      </p>
+                    </div>
+                  )}
+                  {patient.hasDrainage && daysSinceOp(patient) >= 2 && (
+                    <div className="bg-[#E0F2FE] p-3 rounded-xl flex items-center gap-3 border border-[#BAE6FD]">
+                      <span className="material-symbols-outlined text-[#0284C7] text-[24px]">warning</span>
+                      <p className="text-[11px] font-extrabold text-[#0369A1] uppercase tracking-tighter leading-none">
+                        RIMUOVERE DRENAGGIO: SUPERATE 48 ORE
+                      </p>
+                    </div>
+                  )}
+                </div>
 
                 {/* Control Toggles: DRAINAGE & CV */}
                 <div className="grid grid-cols-2 gap-3 mt-1">
@@ -289,9 +303,10 @@ const WardDashboard = () => {
                           )}
                           {tooltipPatientId === patient.id && (
                             <div className="absolute z-10 mt-1 w-56 bg-surface-container-high text-on-surface p-2 rounded shadow-lg">
-                              {!patient.diariaUpdated && <p className="text-sm py-0.5">📋 Diaria non aggiornata</p>}
-                              {patient.hasCV && daysSinceOp(patient) >= 2 && <p className="text-sm py-0.5">🩺 CV da rimuovere ({daysSinceOp(patient)} gg)</p>}
-                              {daysSinceOp(patient) >= 2 && patient.rxStatus !== 'Eseguita' && <p className="text-sm py-0.5">🩻 RX da richiedere</p>}
+                                {!patient.diariaUpdated && <p className="text-sm py-0.5">📋 Diaria non aggiornata</p>}
+                                {patient.hasCV && daysSinceOp(patient) >= 2 && <p className="text-sm py-0.5">🩺 CV da rimuovere ({daysSinceOp(patient)} gg)</p>}
+                                {patient.hasDrainage && daysSinceOp(patient) >= 2 && <p className="text-sm py-0.5">💧 Drenaggio da rimuovere ({daysSinceOp(patient)} gg)</p>}
+                                {daysSinceOp(patient) >= 2 && patient.rxStatus !== 'Eseguita' && <p className="text-sm py-0.5">🩻 RX da richiedere</p>}
                             </div>
                           )}
                           </div>

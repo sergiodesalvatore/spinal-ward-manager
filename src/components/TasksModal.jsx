@@ -13,12 +13,14 @@ const TasksModal = ({ onClose }) => {
     if (!p.diariaUpdated) {
       tasks.push({ patient: p, type: 'diaria', label: 'Aggiornare Diaria' });
     }
-    if (p.hasCV) {
-      const diffTime = Math.abs(new Date() - new Date(p.operationDate));
-      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-      if (diffDays >= 2) {
-        tasks.push({ patient: p, type: 'cv', label: 'Rimuovere CV (>48h)' });
-      }
+    const diffTime = Math.abs(new Date() - new Date(p.operationDate));
+    const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+    
+    if (p.hasCV && diffDays >= 2) {
+      tasks.push({ patient: p, type: 'cv', label: 'Rimuovere CV (>48h)' });
+    }
+    if (p.hasDrainage && diffDays >= 2) {
+      tasks.push({ patient: p, type: 'drainage', label: 'Rimuovere Drenaggio (>48h)' });
     }
   });
 
@@ -53,7 +55,7 @@ const TasksModal = ({ onClose }) => {
                 <div key={`${task.patient.id}-${idx}`} className="flex items-center justify-between p-4 rounded-2xl border border-outline-variant/10 bg-surface-bright hover:bg-surface-container-low transition-colors group">
                   <div className="flex items-start gap-4">
                     <div className="mt-0.5">
-                      {task.type === 'cv' ? (
+                      {task.type === 'cv' || task.type === 'drainage' ? (
                          <span className="material-symbols-outlined text-error">warning</span>
                       ) : (
                          <span className="material-symbols-outlined text-secondary">assignment_late</span>

@@ -216,6 +216,43 @@ const PatientDetailPage = () => {
                   )}
                 </div>
 
+                {/* Rimozione Drenaggio with Alert */}
+                <div className={`p-5 rounded-xl flex flex-col justify-between shadow-sm border-l-4 ${patient.hasDrainage && is48hPassed ? 'bg-surface-container-lowest border-primary' : 'bg-surface-container-lowest border-outline-variant/30'}`}>
+                  <div className="flex justify-between items-start mb-4">
+                    <div className="space-y-1">
+                      <p className="text-[10px] font-bold text-on-surface-variant uppercase tracking-widest">Stato Drenaggio</p>
+                      <p className="text-sm font-bold text-on-surface">Rimozione Drenaggio</p>
+                    </div>
+                    {patient.hasDrainage && is48hPassed && (
+                      <span className="material-symbols-outlined text-primary" style={{ fontVariationSettings: "'FILL' 1" }}>warning</span>
+                    )}
+                  </div>
+                  {patient.hasDrainage ? (
+                     is48hPassed ? (
+                      <div className="bg-primary/10 p-3 rounded-lg border border-primary/20">
+                        <p className="text-xs font-bold text-primary flex items-center">
+                          <span className="material-symbols-outlined text-sm mr-2">alarm</span>
+                          SCADUTO: OLTRE 48 ORE
+                        </p>
+                      </div>
+                     ) : (
+                      <div className="bg-surface-container p-3 rounded-lg">
+                        <p className="text-xs font-bold text-on-surface flex items-center">
+                          <span className="material-symbols-outlined text-sm mr-2">schedule</span>
+                          In Range {`<`} 48h
+                        </p>
+                      </div>
+                     )
+                  ) : (
+                    <div className="bg-secondary-container p-3 rounded-lg">
+                       <p className="text-xs font-bold text-on-secondary-container flex items-center">
+                          <span className="material-symbols-outlined text-sm mr-2" style={{ fontVariationSettings: "'FILL' 1" }}>check_circle</span>
+                          GIA' RIMOSSO
+                        </p>
+                    </div>
+                  )}
+                </div>
+
                 {/* RX Checkpoints */}
                 <div className="bg-surface-container-lowest p-5 rounded-xl shadow-sm flex flex-col space-y-4 border-l-4 border-primary">
                   <div className="space-y-1">

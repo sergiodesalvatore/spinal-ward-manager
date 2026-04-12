@@ -12,11 +12,10 @@ const MainLayout = ({ setIsSettingsOpen }) => {
   const activePatients = patients.filter(p => p.status !== 'Archived' && p.status !== 'Discharged');
   const pendingTasks = activePatients.filter(p => {
     if (!p.diariaUpdated) return true;
-    if (p.hasCV) {
-      const diffTime = Math.abs(new Date() - new Date(p.operationDate));
-      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-      if (diffDays >= 2) return true;
-    }
+    const diffTime = Math.abs(new Date() - new Date(p.operationDate));
+    const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+    if (p.hasCV && diffDays >= 2) return true;
+    if (p.hasDrainage && diffDays >= 2) return true;
     return false;
   }).length;
 
@@ -86,7 +85,7 @@ const MainLayout = ({ setIsSettingsOpen }) => {
             <div className="md:hidden w-8 h-8 rounded-full bg-primary-container flex items-center justify-center overflow-hidden shrink-0">
                <span className="material-symbols-outlined text-primary text-sm" style={{ fontVariationSettings: "'FILL' 1" }}>medical_services</span>
             </div>
-            <span className="text-xl font-bold text-[#005dac] dark:text-blue-400 tracking-tight font-headline">ScolioCare</span>
+            <span className="text-xl font-bold text-[#005dac] dark:text-blue-400 tracking-tight font-headline uppercase">scolioward</span>
           </div>
 
           <div className="flex items-center gap-2 md:gap-4">
@@ -99,7 +98,7 @@ const MainLayout = ({ setIsSettingsOpen }) => {
             <button 
               onClick={() => setIsSettingsOpen(true)}
               className="p-2 text-slate-600 dark:text-slate-400 hover:bg-[#f2f4f5] dark:hover:bg-slate-800 rounded-full transition-colors active:scale-90 shrink-0"
-              title="ScolioCare Settings"
+              title="scolioward Settings"
             >
               <span className="material-symbols-outlined">settings</span>
             </button>
