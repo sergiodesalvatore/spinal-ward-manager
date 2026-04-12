@@ -197,11 +197,21 @@ const WardDashboard = () => {
                 {/* RX Row - Integrated if needed, or separate pulse */}
                 {daysSinceOp(patient) >= 2 && patient.rxStatus !== 'Eseguita' && (
                   <button 
-                    onClick={(e) => { e.stopPropagation(); updatePatient(patient.id, { rxStatus: 'Richiesta' }); }}
-                    className="flex items-center justify-center gap-2 p-3 bg-red-50 text-red-600 rounded-xl border border-red-100 animate-pulse"
+                    onClick={(e) => { 
+                      e.stopPropagation(); 
+                      const nextStatus = patient.rxStatus === 'Richiesta' ? 'Eseguita' : 'Richiesta';
+                      updatePatient(patient.id, { rxStatus: nextStatus }); 
+                    }}
+                    className={`flex items-center justify-center gap-2 p-3 rounded-xl border transition-all ${
+                      patient.rxStatus === 'Richiesta' 
+                        ? 'bg-amber-50 text-amber-600 border-amber-100' 
+                        : 'bg-red-50 text-red-600 border-red-100 animate-pulse'
+                    }`}
                   >
                     <span className="material-symbols-outlined text-sm">radiology</span>
-                    <span className="text-[11px] font-bold uppercase">RX DA RICHIEDERE</span>
+                    <span className="text-[11px] font-bold uppercase">
+                      {patient.rxStatus === 'Richiesta' ? 'RX RICHIESTA' : 'RX DA RICHIEDERE'}
+                    </span>
                   </button>
                 )}
 
