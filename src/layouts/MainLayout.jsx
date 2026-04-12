@@ -42,8 +42,7 @@ const MainLayout = ({ setIsSettingsOpen }) => {
               <span className="material-symbols-outlined" style={{ fontVariationSettings: "'FILL' 1" }}>clinical_notes</span>
             </div>
             <div>
-              <h2 className="text-lg font-bold text-slate-800 dark:text-slate-100 leading-tight font-headline">Unità Operativa Ortopedia</h2>
-              <p className="text-[10px] uppercase tracking-wider text-slate-500 font-bold">Reparto Chirurgia Vertebrale</p>
+              <h2 className="text-sm font-bold text-slate-800 dark:text-slate-100 leading-tight font-headline">Unità Operativa di Ortopedia e Traumatologia</h2>
             </div>
           </div>
         </div>
