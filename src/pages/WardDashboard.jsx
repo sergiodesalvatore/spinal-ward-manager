@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import { usePatientStore } from '../store/usePatientStore';
+import { isToday } from '../utils/dateUtils';
 
 const WardDashboard = () => {
   const { patients, updatePatient } = usePatientStore();
@@ -23,7 +24,7 @@ const WardDashboard = () => {
   };
 
   const hasPendingTasks = (p) => {
-    if (!p.diariaUpdated) return true;
+    if (!isToday(p.diariaUpdatedAt)) return true;
     const days = daysSinceOp(p);
     if (p.hasCV && days >= 2) return true;
     if (p.hasDrainage && days >= 2) return true;
@@ -120,10 +121,14 @@ const WardDashboard = () => {
                   
                   {/* Big Status Radio/Check Icon */}
                   <button 
-                    onClick={(e) => { e.stopPropagation(); updatePatient(patient.id, { diariaUpdated: !patient.diariaUpdated, diariaUpdatedAt: new Date().toISOString() }); }}
+                    onClick={(e) => { 
+                      e.stopPropagation(); 
+                      const currentlyUpdated = isToday(patient.diariaUpdatedAt);
+                      updatePatient(patient.id, { diariaUpdated: !currentlyUpdated, diariaUpdatedAt: new Date().toISOString() }); 
+                    }}
                     className="shrink-0 p-1"
                   >
-                    {patient.diariaUpdated ? (
+                    {isToday(patient.diariaUpdatedAt) ? (
                       <div className="w-8 h-8 rounded-full bg-[#3CC09E] flex items-center justify-center text-white">
                         <span className="material-symbols-outlined text-[20px] font-bold">check</span>
                       </div>
@@ -218,7 +223,7 @@ const WardDashboard = () => {
                 {/* Status Footer: Diaria */}
                 <div className="pt-4 border-t border-gray-100 flex items-center gap-2 mt-1">
                   <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">DIARIA:</span>
-                  {patient.diariaUpdated ? (
+                  {isToday(patient.diariaUpdatedAt) ? (
                     <div className="flex items-center gap-1.5">
                       <span className="material-symbols-outlined text-[#3CC09E] text-[14px] font-bold">check</span>
                       <span className="text-[11px] font-bold text-[#3CC09E]">
@@ -313,7 +318,7 @@ const WardDashboard = () => {
                           )}
                           {tooltipPatientId === patient.id && (
                             <div className="absolute z-10 mt-1 w-56 bg-surface-container-high text-on-surface p-2 rounded shadow-lg">
-                                {!patient.diariaUpdated && <p className="text-sm py-0.5">📋 Diaria non aggiornata</p>}
+                                {!isToday(patient.diariaUpdatedAt) && <p className="text-sm py-0.5">📋 Diaria non aggiornata</p>}
                                 {patient.hasCV && daysSinceOp(patient) >= 2 && <p className="text-sm py-0.5">🩺 CV da rimuovere ({daysSinceOp(patient)} gg)</p>}
                                 {patient.hasDrainage && daysSinceOp(patient) >= 2 && <p className="text-sm py-0.5">💧 Drenaggio da rimuovere ({daysSinceOp(patient)} gg)</p>}
                                 {daysSinceOp(patient) >= 2 && patient.rxStatus !== 'Eseguita' && <p className="text-sm py-0.5">🩻 RX da richiedere</p>}
@@ -372,11 +377,14 @@ const WardDashboard = () => {
                     </td>
                     <td className="px-4 py-5 text-center" onClick={(e) => e.stopPropagation()}>
                         <button
-                          onClick={() => updatePatient(patient.id, { diariaUpdated: !patient.diariaUpdated })}
+                          onClick={() => {
+                            const currentlyUpdated = isToday(patient.diariaUpdatedAt);
+                            updatePatient(patient.id, { diariaUpdated: !currentlyUpdated, diariaUpdatedAt: new Date().toISOString() });
+                          }}
                           className="hover:opacity-70 transition-opacity active:scale-95"
-                          title={patient.diariaUpdated ? 'Segna come non aggiornato' : 'Segna come aggiornato'}
+                          title={isToday(patient.diariaUpdatedAt) ? 'Segna come non aggiornato' : 'Segna come aggiornato'}
                         >
-                          {patient.diariaUpdated ? (
+                          {isToday(patient.diariaUpdatedAt) ? (
                             <span className="material-symbols-outlined text-secondary" style={{ fontVariationSettings: "'FILL' 1" }}>check_circle</span>
                           ) : (
                             <span className="material-symbols-outlined text-outline-variant hover:text-secondary transition-colors">radio_button_unchecked</span>

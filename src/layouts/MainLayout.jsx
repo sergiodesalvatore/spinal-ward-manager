@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { usePatientStore } from '../store/usePatientStore';
 import TasksModal from '../components/TasksModal';
+import { isToday } from '../utils/dateUtils';
 
 const MainLayout = ({ setIsSettingsOpen }) => {
   const location = useLocation();
@@ -11,7 +12,7 @@ const MainLayout = ({ setIsSettingsOpen }) => {
 
   const activePatients = patients.filter(p => p.status !== 'Archived' && p.status !== 'Discharged');
   const pendingTasks = activePatients.filter(p => {
-    if (!p.diariaUpdated) return true;
+    if (!isToday(p.diariaUpdatedAt)) return true;
     const diffTime = Math.abs(new Date() - new Date(p.operationDate));
     const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
     if (p.hasCV && diffDays >= 2) return true;

@@ -1,6 +1,7 @@
 import React from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { usePatientStore } from '../store/usePatientStore';
+import { isToday } from '../utils/dateUtils';
 
 const PatientDetailPage = () => {
   const { id } = useParams();
@@ -139,8 +140,11 @@ const PatientDetailPage = () => {
                 <label className="flex items-center p-3 rounded-lg hover:bg-surface-container-low transition-colors cursor-pointer group border border-outline-variant/10 md:border-none">
                   <input 
                     type="checkbox" 
-                    checked={patient.diariaUpdated || false} 
-                    onChange={(e) => handleUpdate('diariaUpdated', e.target.checked)}
+                    checked={isToday(patient.diariaUpdatedAt)} 
+                    onChange={(e) => {
+                      const currentlyUpdated = isToday(patient.diariaUpdatedAt);
+                      handleUpdate('diariaUpdated', !currentlyUpdated);
+                    }}
                     className="w-5 h-5 rounded border-outline text-secondary focus:ring-secondary transition-all custom-checkbox" 
                   />
                   <span className="ml-3 text-sm font-semibold text-on-surface group-hover:text-secondary">Conferma Diaria Aggiornata</span>

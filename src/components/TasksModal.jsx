@@ -1,6 +1,7 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { usePatientStore } from '../store/usePatientStore';
+import { isToday } from '../utils/dateUtils';
 
 const TasksModal = ({ onClose }) => {
   const { patients } = usePatientStore();
@@ -10,7 +11,7 @@ const TasksModal = ({ onClose }) => {
   
   const tasks = [];
   activePatients.forEach(p => {
-    if (!p.diariaUpdated) {
+    if (!isToday(p.diariaUpdatedAt)) {
       tasks.push({ patient: p, type: 'diaria', label: 'Aggiornare Diaria' });
     }
     const diffTime = Math.abs(new Date() - new Date(p.operationDate));

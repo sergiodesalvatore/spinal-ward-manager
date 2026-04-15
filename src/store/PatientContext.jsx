@@ -76,6 +76,8 @@ export const PatientProvider = ({ children }) => {
         const updatedObj = { ...p, ...newFlags };
         if (newFlags.diariaUpdated === true) {
           updatedObj.diariaUpdatedAt = new Date().toISOString();
+        } else if (newFlags.diariaUpdated === false) {
+          updatedObj.diariaUpdatedAt = null;
         }
         return updatedObj;
       }
@@ -85,9 +87,16 @@ export const PatientProvider = ({ children }) => {
     setPatients(updated);
     localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
 
+    const finalUpdate = { ...newFlags };
+    if (newFlags.diariaUpdated === true) {
+      finalUpdate.diariaUpdatedAt = new Date().toISOString();
+    } else if (newFlags.diariaUpdated === false) {
+      finalUpdate.diariaUpdatedAt = null;
+    }
+
     const { error } = await supabase
       .from('patients')
-      .update({ ...newFlags, diariaUpdatedAt: newFlags.diariaUpdated === true ? new Date().toISOString() : undefined })
+      .update(finalUpdate)
       .eq('id', id);
 
     if (error) {
