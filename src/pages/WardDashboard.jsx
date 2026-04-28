@@ -8,6 +8,8 @@ const WardDashboard = () => {
   const navigate = useNavigate();
   const [tooltipPatientId, setTooltipPatientId] = useState(null);
   const [filter, setFilter] = useState('All');
+  const [editingNotesId, setEditingNotesId] = useState(null);
+  const [tempNotes, setTempNotes] = useState('');
 
   // Filter out archived patients. Assume active unless explicitly archived or discharged
   const activePatients = patients.filter(p => p.status !== 'Archived' && p.status !== 'Discharged');
@@ -52,6 +54,22 @@ const WardDashboard = () => {
 
   const getInitials = (name, surname) => {
     return `${name?.charAt(0) || ''}${surname?.charAt(0) || ''}`.toUpperCase();
+  };
+
+  const handleEditNotes = (e, patient) => {
+    e.stopPropagation();
+    if (editingNotesId === patient.id) {
+      setEditingNotesId(null);
+    } else {
+      setEditingNotesId(patient.id);
+      setTempNotes(patient.notes || '');
+    }
+  };
+
+  const handleSaveNotes = async (e, id) => {
+    e.stopPropagation();
+    await updatePatient(id, { notes: tempNotes });
+    setEditingNotesId(null);
   };
 
   return (
@@ -119,24 +137,75 @@ const WardDashboard = () => {
                     </div>
                   </div>
                   
-                  {/* Big Status Radio/Check Icon */}
-                  <button 
-                    onClick={(e) => { 
-                      e.stopPropagation(); 
-                      const currentlyUpdated = isToday(patient.diariaUpdatedAt);
-                      updatePatient(patient.id, { diariaUpdated: !currentlyUpdated, diariaUpdatedAt: new Date().toISOString() }); 
-                    }}
-                    className="shrink-0 p-1"
-                  >
-                    {isToday(patient.diariaUpdatedAt) ? (
-                      <div className="w-8 h-8 rounded-full bg-[#3CC09E] flex items-center justify-center text-white">
-                        <span className="material-symbols-outlined text-[20px] font-bold">check</span>
-                      </div>
-                    ) : (
-                      <div className="w-8 h-8 rounded-full border-2 border-gray-200 flex items-center justify-center"></div>
-                    )}
-                  </button>
+                  <div className="flex items-start gap-2">
+                    {/* Notes Button with Badge */}
+                    <button 
+                      onClick={(e) => handleEditNotes(e, patient)}
+                      className={`relative p-2 rounded-xl transition-all ${patient.notes ? 'text-amber-500 bg-amber-50 border border-amber-100' : 'text-gray-400 hover:bg-gray-50'}`}
+                      title="Note Rapide"
+                    >
+                      <span className="material-symbols-outlined text-[24px]">sticky_note_2</span>
+                      {patient.notes && (
+                        <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-amber-500 rounded-full border-2 border-white"></span>
+                      )}
+                    </button>
+
+                    {/* Big Status Radio/Check Icon */}
+                    <button 
+                      onClick={(e) => { 
+                        e.stopPropagation(); 
+                        const currentlyUpdated = isToday(patient.diariaUpdatedAt);
+                        updatePatient(patient.id, { diariaUpdated: !currentlyUpdated, diariaUpdatedAt: new Date().toISOString() }); 
+                      }}
+                      className="shrink-0 p-1"
+                    >
+                      {isToday(patient.diariaUpdatedAt) ? (
+                        <div className="w-8 h-8 rounded-full bg-[#3CC09E] flex items-center justify-center text-white">
+                          <span className="material-symbols-outlined text-[20px] font-bold">check</span>
+                        </div>
+                      ) : (
+                        <div className="w-8 h-8 rounded-full border-2 border-gray-200 flex items-center justify-center"></div>
+                      )}
+                    </button>
+                  </div>
                 </div>
+
+                {/* Notes Preview (Mobile) */}
+                {patient.notes && editingNotesId !== patient.id && (
+                  <div 
+                    className="mx-5 mb-2 p-3 bg-amber-50/50 rounded-xl border border-amber-100/50 cursor-pointer"
+                    onClick={(e) => handleEditNotes(e, patient)}
+                  >
+                    <p className="text-[11px] text-amber-800 italic line-clamp-2">
+                      <span className="font-bold mr-1">NOTE:</span>
+                      {patient.notes}
+                    </p>
+                  </div>
+                )}
+
+                {/* Collapsible Edit Notes Area (Mobile) */}
+                {editingNotesId === patient.id && (
+                  <div 
+                    className="p-4 bg-amber-50 rounded-2xl border border-amber-100 flex flex-col gap-3 animate-in slide-in-from-top-2 duration-200" 
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <div className="flex items-center gap-2 text-amber-800">
+                      <span className="material-symbols-outlined text-sm">edit_note</span>
+                      <span className="text-xs font-bold uppercase tracking-wider">Note Cliniche Rapide</span>
+                    </div>
+                    <textarea 
+                      autoFocus
+                      value={tempNotes}
+                      onChange={(e) => setTempNotes(e.target.value)}
+                      className="w-full bg-white border border-amber-200 rounded-xl p-3 text-sm text-gray-800 focus:ring-2 focus:ring-amber-500 outline-none min-h-[100px] shadow-inner"
+                      placeholder="Scrivi qui le note per il passaggio consegne o osservazioni rapide..."
+                    />
+                    <div className="flex justify-end gap-3">
+                      <button onClick={() => setEditingNotesId(null)} className="px-4 py-2 text-xs font-bold text-amber-700 hover:bg-amber-100 rounded-lg transition-colors">Annulla</button>
+                      <button onClick={(e) => handleSaveNotes(e, patient.id)} className="px-6 py-2 bg-amber-600 text-white rounded-xl text-xs font-black shadow-sm active:scale-95 transition-all">SALVA NOTA</button>
+                    </div>
+                  </div>
+                )}
 
                 {/* Alert Banners: CV & DRAINAGE > 48h */}
                 <div className="flex flex-col gap-2">
@@ -298,142 +367,187 @@ const WardDashboard = () => {
                   <th className="px-4 py-3 text-center text-[10px] font-bold text-on-surface-variant uppercase tracking-widest">CV</th>
                   <th className="px-4 py-3 text-center text-[10px] font-bold text-on-surface-variant uppercase tracking-widest">Dimiss.</th>
                   <th className="px-4 py-3 text-center text-[10px] font-bold text-on-surface-variant uppercase tracking-widest">Diaria</th>
+                  <th className="px-4 py-3 text-center text-[10px] font-bold text-on-surface-variant uppercase tracking-widest text-center">Note</th>
                   <th className="px-4 py-4 text-xs font-bold uppercase tracking-wider text-on-surface-variant text-center">RX</th>
                   <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-on-surface-variant text-right">Azioni</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-outline-variant/10">
                 {sortedPatients.map(patient => (
-                  <tr key={patient.id} className="hover:bg-surface-container-low transition-colors group cursor-pointer" onClick={() => navigate(`/patient/${patient.id}`)}>
-                    <td className="px-6 py-5">
-                      <div className="flex items-center gap-3">
-                        <div className={`w-9 h-9 rounded-full flex items-center justify-center font-bold text-xs ${patient.location === 'Terapia Intensiva' ? 'bg-primary/10 text-primary' : 'bg-secondary/10 text-secondary'}`}>
-                          {getInitials(patient.firstName, patient.lastName)}
-                        </div>
-                        <div>
-                          <div className="font-bold text-on-surface relative inline-block">
-                            {patient.firstName} {patient.lastName}
-                            {hasPendingTasks(patient) && (
-                            <button type="button" className="relative w-2 h-2 bg-error rounded-full ml-2" onClick={(e) => { e.stopPropagation(); setTooltipPatientId(tooltipPatientId === patient.id ? null : patient.id); }} title="Task pendenti"></button>
-                          )}
-                          {tooltipPatientId === patient.id && (
-                            <div className="absolute z-10 mt-1 w-56 bg-surface-container-high text-on-surface p-2 rounded shadow-lg">
-                                {!isToday(patient.diariaUpdatedAt) && <p className="text-sm py-0.5">📋 Diaria non aggiornata</p>}
-                                {patient.hasCV && daysSinceOp(patient) >= 2 && <p className="text-sm py-0.5">🩺 CV da rimuovere ({daysSinceOp(patient)} gg)</p>}
-                                {patient.hasDrainage && daysSinceOp(patient) >= 2 && <p className="text-sm py-0.5">💧 Drenaggio da rimuovere ({daysSinceOp(patient)} gg)</p>}
-                                {daysSinceOp(patient) >= 2 && patient.rxStatus !== 'Eseguita' && <p className="text-sm py-0.5">🩻 RX da richiedere</p>}
-                            </div>
-                          )}
+                  <React.Fragment key={patient.id}>
+                    <tr className="hover:bg-surface-container-low transition-colors group cursor-pointer" onClick={() => navigate(`/patient/${patient.id}`)}>
+                      <td className="px-6 py-5">
+                        <div className="flex items-center gap-3">
+                          <div className={`w-9 h-9 rounded-full flex items-center justify-center font-bold text-xs ${patient.location === 'Terapia Intensiva' ? 'bg-primary/10 text-primary' : 'bg-secondary/10 text-secondary'}`}>
+                            {getInitials(patient.firstName, patient.lastName)}
                           </div>
-                          <div className="text-xs text-on-surface-variant font-medium">Intervento: {new Date(patient.operationDate).toLocaleDateString()}</div>
+                          <div>
+                            <div className="font-bold text-on-surface relative inline-block">
+                              {patient.firstName} {patient.lastName}
+                              {hasPendingTasks(patient) && (
+                              <button type="button" className="relative w-2 h-2 bg-error rounded-full ml-2" onClick={(e) => { e.stopPropagation(); setTooltipPatientId(tooltipPatientId === patient.id ? null : patient.id); }} title="Task pendenti"></button>
+                            )}
+                            {tooltipPatientId === patient.id && (
+                              <div className="absolute z-10 mt-1 w-56 bg-surface-container-high text-on-surface p-2 rounded shadow-lg">
+                                  {!isToday(patient.diariaUpdatedAt) && <p className="text-sm py-0.5">📋 Diaria non aggiornata</p>}
+                                  {patient.hasCV && daysSinceOp(patient) >= 2 && <p className="text-sm py-0.5">🩺 CV da rimuovere ({daysSinceOp(patient)} gg)</p>}
+                                  {patient.hasDrainage && daysSinceOp(patient) >= 2 && <p className="text-sm py-0.5">💧 Drenaggio da rimuovere ({daysSinceOp(patient)} gg)</p>}
+                                  {daysSinceOp(patient) >= 2 && patient.rxStatus !== 'Eseguita' && <p className="text-sm py-0.5">🩻 RX da richiedere</p>}
+                              </div>
+                            )}
+                            </div>
+                            <div className="text-xs text-on-surface-variant font-medium">Intervento: {new Date(patient.operationDate).toLocaleDateString()}</div>
+                          </div>
                         </div>
-                      </div>
-                    </td>
-                    <td className="px-4 py-3">
-                      <input 
-                        type="text" 
-                        value={patient.bedNumber}
-                        onChange={(e) => updatePatient(patient.id, { bedNumber: e.target.value })}
-                        onClick={(e) => e.stopPropagation()}
-                        className="w-16 md:w-20 bg-transparent border border-transparent hover:border-outline-variant/30 focus:border-primary focus:ring-1 focus:ring-primary rounded px-2 py-1 font-bold text-on-surface-variant transition-all"
-                      />
-                    </td>
-                    <td className="px-4 py-3">
-                      <select
-                        value={patient.location}
-                        onChange={(e) => updatePatient(patient.id, { location: e.target.value })}
-                        onClick={(e) => e.stopPropagation()}
-                        className={`text-[10px] font-bold uppercase tracking-tighter py-1 px-3 pr-7 rounded-full appearance-none bg-no-repeat cursor-pointer border-none focus:ring-2 focus:ring-primary/20 ${patient.location === 'Terapia Intensiva' ? 'bg-error-container text-on-error-container' : 'bg-secondary-container text-on-secondary-container'}`}
-                        style={{ backgroundImage: "url(\"data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e\")", backgroundPosition: "right 0.3rem center", backgroundSize: "1.2em 1.2em" }}
-                      >
-                        <option value="Terapia Intensiva">Ter. Intensiva</option>
-                        <option value="Reparto">Reparto</option>
-                      </select>
-                    </td>
-                    <td className="px-4 py-5 text-center" onClick={(e) => e.stopPropagation()}>
-                       {/* Drainage toggle */}
-                       <label className="inline-flex items-center cursor-pointer">
-                         <input type="checkbox" className="sr-only peer" checked={!!patient.hasDrainage} onChange={(e) => updatePatient(patient.id, { hasDrainage: e.target.checked })} />
-                         <div className="relative w-11 h-6 bg-surface-container-high rounded-full peer-checked:bg-secondary after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:w-5 after:h-5 after:bg-white after:rounded-full after:transition-all peer-checked:after:translate-x-5" />
-                       </label>
-                    </td>
-                    <td className="px-4 py-5 text-center" onClick={(e) => e.stopPropagation()}>
-                       {/* CV toggle */}
-                       <label className="inline-flex items-center cursor-pointer">
-                         <input type="checkbox" className="sr-only peer" checked={!!patient.hasCV} onChange={(e) => updatePatient(patient.id, { hasCV: e.target.checked })} />
-                         <div className="relative w-11 h-6 bg-surface-container-high rounded-full peer-checked:bg-secondary after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:w-5 after:h-5 after:bg-white after:rounded-full after:transition-all peer-checked:after:translate-x-5" />
-                       </label>
-                    </td>
-                    <td className="px-4 py-5 text-center" onClick={(e) => e.stopPropagation()}>
-                       {/* Dimissione toggle */}
-                       {daysSinceOp(patient) >= 2 ? (
-                         <label className="inline-flex items-center cursor-pointer">
-                           <input type="checkbox" className="sr-only peer" checked={!!patient.writtenDischarge} onChange={(e) => updatePatient(patient.id, { writtenDischarge: e.target.checked })} />
-                           <div className="relative w-11 h-6 bg-surface-container-high rounded-full peer-checked:bg-[#7C4DFF] after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:w-5 after:h-5 after:bg-white after:rounded-full after:transition-all peer-checked:after:translate-x-5" />
-                         </label>
-                       ) : (
-                         <span className="text-outline-variant text-[10px] font-medium">–</span>
-                       )}
-                    </td>
-                    <td className="px-4 py-5 text-center" onClick={(e) => e.stopPropagation()}>
-                        <button
-                          onClick={() => {
-                            const currentlyUpdated = isToday(patient.diariaUpdatedAt);
-                            updatePatient(patient.id, { diariaUpdated: !currentlyUpdated, diariaUpdatedAt: new Date().toISOString() });
-                          }}
-                          className="hover:opacity-70 transition-opacity active:scale-95"
-                          title={isToday(patient.diariaUpdatedAt) ? 'Segna come non aggiornato' : 'Segna come aggiornato'}
+                      </td>
+                      <td className="px-4 py-3">
+                        <input 
+                          type="text" 
+                          value={patient.bedNumber}
+                          onChange={(e) => updatePatient(patient.id, { bedNumber: e.target.value })}
+                          onClick={(e) => e.stopPropagation()}
+                          className="w-16 md:w-20 bg-transparent border border-transparent hover:border-outline-variant/30 focus:border-primary focus:ring-1 focus:ring-primary rounded px-2 py-1 font-bold text-on-surface-variant transition-all"
+                        />
+                      </td>
+                      <td className="px-4 py-3">
+                        <select
+                          value={patient.location}
+                          onChange={(e) => updatePatient(patient.id, { location: e.target.value })}
+                          onClick={(e) => e.stopPropagation()}
+                          className={`text-[10px] font-bold uppercase tracking-tighter py-1 px-3 pr-7 rounded-full appearance-none bg-no-repeat cursor-pointer border-none focus:ring-2 focus:ring-primary/20 ${patient.location === 'Terapia Intensiva' ? 'bg-error-container text-on-error-container' : 'bg-secondary-container text-on-secondary-container'}`}
+                          style={{ backgroundImage: "url(\"data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e\")", backgroundPosition: "right 0.3rem center", backgroundSize: "1.2em 1.2em" }}
                         >
-                          {isToday(patient.diariaUpdatedAt) ? (
-                            <span className="material-symbols-outlined text-secondary" style={{ fontVariationSettings: "'FILL' 1" }}>check_circle</span>
-                          ) : (
-                            <span className="material-symbols-outlined text-outline-variant hover:text-secondary transition-colors">radio_button_unchecked</span>
-                          )}
-                        </button>
-                    </td>
-                    <td className="px-4 py-3 text-center" onClick={(e) => e.stopPropagation()}>
-                       {(() => {
-                         const status = getRxStatus(patient);
-                         if (status === 'hidden') return (
-                           <span className="text-outline-variant text-xs">–</span>
-                         );
-                         if (status === 'done') return (
-                           <button
-                             onClick={() => updatePatient(patient.id, { rxStatus: 'Richiesta' })}
-                             className="flex items-center gap-1 mx-auto text-secondary text-xs font-bold"
-                             title="RX eseguita – clicca per tornare a Richiesta"
-                           >
-                             <span className="material-symbols-outlined text-base" style={{ fontVariationSettings: "'FILL' 1" }}>radiology</span>
-                             <span>Eseguita</span>
-                           </button>
-                         );
-                         if (status === 'requested') return (
-                           <button
-                             onClick={() => updatePatient(patient.id, { rxStatus: 'Eseguita' })}
-                             className="flex items-center gap-1 mx-auto text-warning text-xs font-bold"
-                             title="RX richiesta – clicca per segnare come eseguita"
-                           >
-                             <span className="material-symbols-outlined text-base">radiology</span>
-                             <span>Richiesta</span>
-                           </button>
-                         );
-                         // needed
-                         return (
-                           <button
-                             onClick={() => updatePatient(patient.id, { rxStatus: 'Richiesta' })}
-                             className="flex items-center gap-1 mx-auto text-error text-xs font-bold animate-pulse"
-                             title="RX da richiedere – clicca per segnare come richiesta"
-                           >
-                             <span className="material-symbols-outlined text-base">radiology</span>
-                             <span>Da fare</span>
-                           </button>
-                         );
-                       })()}
-                    </td>
-                    <td className="px-6 py-5 text-right">
-                      <button className="text-primary font-bold text-xs hover:underline" onClick={(e) => { e.stopPropagation(); navigate(`/patient/${patient.id}`); }}>Vedi Cartella</button>
-                    </td>
-                  </tr>
+                          <option value="Terapia Intensiva">Ter. Intensiva</option>
+                          <option value="Reparto">Reparto</option>
+                        </select>
+                      </td>
+                      <td className="px-4 py-5 text-center" onClick={(e) => e.stopPropagation()}>
+                         {/* Drainage toggle */}
+                         <label className="inline-flex items-center cursor-pointer">
+                           <input type="checkbox" className="sr-only peer" checked={!!patient.hasDrainage} onChange={(e) => updatePatient(patient.id, { hasDrainage: e.target.checked })} />
+                           <div className="relative w-11 h-6 bg-surface-container-high rounded-full peer-checked:bg-secondary after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:w-5 after:h-5 after:bg-white after:rounded-full after:transition-all peer-checked:after:translate-x-5" />
+                         </label>
+                      </td>
+                      <td className="px-4 py-5 text-center" onClick={(e) => e.stopPropagation()}>
+                         {/* CV toggle */}
+                         <label className="inline-flex items-center cursor-pointer">
+                           <input type="checkbox" className="sr-only peer" checked={!!patient.hasCV} onChange={(e) => updatePatient(patient.id, { hasCV: e.target.checked })} />
+                           <div className="relative w-11 h-6 bg-surface-container-high rounded-full peer-checked:bg-secondary after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:w-5 after:h-5 after:bg-white after:rounded-full after:transition-all peer-checked:after:translate-x-5" />
+                         </label>
+                      </td>
+                      <td className="px-4 py-5 text-center" onClick={(e) => e.stopPropagation()}>
+                         {/* Dimissione toggle */}
+                         {daysSinceOp(patient) >= 2 ? (
+                           <label className="inline-flex items-center cursor-pointer">
+                             <input type="checkbox" className="sr-only peer" checked={!!patient.writtenDischarge} onChange={(e) => updatePatient(patient.id, { writtenDischarge: e.target.checked })} />
+                             <div className="relative w-11 h-6 bg-surface-container-high rounded-full peer-checked:bg-[#7C4DFF] after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:w-5 after:h-5 after:bg-white after:rounded-full after:transition-all peer-checked:after:translate-x-5" />
+                           </label>
+                         ) : (
+                           <span className="text-outline-variant text-[10px] font-medium">–</span>
+                         )}
+                      </td>
+                      <td className="px-4 py-5 text-center" onClick={(e) => e.stopPropagation()}>
+                          <button
+                            onClick={() => {
+                              const currentlyUpdated = isToday(patient.diariaUpdatedAt);
+                              updatePatient(patient.id, { diariaUpdated: !currentlyUpdated, diariaUpdatedAt: new Date().toISOString() });
+                            }}
+                            className="hover:opacity-70 transition-opacity active:scale-95"
+                            title={isToday(patient.diariaUpdatedAt) ? 'Segna come non aggiornato' : 'Segna come aggiornato'}
+                          >
+                            {isToday(patient.diariaUpdatedAt) ? (
+                              <span className="material-symbols-outlined text-secondary" style={{ fontVariationSettings: "'FILL' 1" }}>check_circle</span>
+                            ) : (
+                              <span className="material-symbols-outlined text-outline-variant hover:text-secondary transition-colors">radio_button_unchecked</span>
+                            )}
+                          </button>
+                      </td>
+                      <td className="px-4 py-5 text-center" onClick={(e) => e.stopPropagation()}>
+                          <div className="flex items-center justify-center gap-2">
+                            <button
+                              onClick={(e) => handleEditNotes(e, patient)}
+                              className={`relative p-2 rounded-lg transition-all ${patient.notes ? 'text-amber-500 bg-amber-50 border border-amber-100' : 'text-outline-variant hover:bg-surface-container-high'}`}
+                              title={patient.notes || 'Aggiungi nota'}
+                            >
+                              <span className="material-symbols-outlined text-[20px]">sticky_note_2</span>
+                              {patient.notes && (
+                                <span className="absolute top-1 right-1 w-2 h-2 bg-amber-500 rounded-full border border-white"></span>
+                              )}
+                            </button>
+                            {patient.notes && !editingNotesId && (
+                              <div className="hidden lg:block max-w-[120px] overflow-hidden text-ellipsis whitespace-nowrap text-[10px] text-amber-700 font-medium italic bg-amber-50/50 px-2 py-1 rounded">
+                                {patient.notes}
+                              </div>
+                            )}
+                          </div>
+                      </td>
+                      <td className="px-4 py-3 text-center" onClick={(e) => e.stopPropagation()}>
+                         {(() => {
+                           const status = getRxStatus(patient);
+                           if (status === 'hidden') return (
+                             <span className="text-outline-variant text-xs">–</span>
+                           );
+                           if (status === 'done') return (
+                             <button
+                               onClick={() => updatePatient(patient.id, { rxStatus: 'Richiesta' })}
+                               className="flex items-center gap-1 mx-auto text-secondary text-xs font-bold"
+                               title="RX eseguita – clicca per tornare a Richiesta"
+                             >
+                               <span className="material-symbols-outlined text-base" style={{ fontVariationSettings: "'FILL' 1" }}>radiology</span>
+                               <span>Eseguita</span>
+                             </button>
+                           );
+                           if (status === 'requested') return (
+                             <button
+                               onClick={() => updatePatient(patient.id, { rxStatus: 'Eseguita' })}
+                               className="flex items-center gap-1 mx-auto text-warning text-xs font-bold"
+                               title="RX richiesta – clicca per segnare come eseguita"
+                             >
+                               <span className="material-symbols-outlined text-base">radiology</span>
+                               <span>Richiesta</span>
+                             </button>
+                           );
+                           // needed
+                           return (
+                             <button
+                               onClick={() => updatePatient(patient.id, { rxStatus: 'Richiesta' })}
+                               className="flex items-center gap-1 mx-auto text-error text-xs font-bold animate-pulse"
+                               title="RX da richiedere – clicca per segnare come richiesta"
+                             >
+                               <span className="material-symbols-outlined text-base">radiology</span>
+                               <span>Da fare</span>
+                             </button>
+                           );
+                         })()}
+                      </td>
+                      <td className="px-6 py-5 text-right">
+                        <button className="text-primary font-bold text-xs hover:underline" onClick={(e) => { e.stopPropagation(); navigate(`/patient/${patient.id}`); }}>Vedi Cartella</button>
+                      </td>
+                    </tr>
+                    {editingNotesId === patient.id && (
+                      <tr className="bg-amber-50/30" onClick={(e) => e.stopPropagation()}>
+                        <td colSpan="10" className="px-8 py-4 border-l-4 border-amber-400">
+                          <div className="flex flex-col gap-3 max-w-2xl">
+                              <div className="flex items-center gap-2 text-amber-800">
+                                <span className="material-symbols-outlined text-sm">edit_note</span>
+                                <span className="text-xs font-bold uppercase tracking-wider">Note Cliniche Rapide</span>
+                              </div>
+                              <textarea 
+                                autoFocus
+                                value={tempNotes}
+                                onChange={(e) => setTempNotes(e.target.value)}
+                                className="w-full bg-white border border-amber-200 rounded-xl p-3 text-sm text-gray-800 focus:ring-2 focus:ring-amber-500 outline-none min-h-[80px] shadow-sm"
+                                placeholder="Scrivi qui le note per il passaggio consegne o osservazioni rapide..."
+                              />
+                              <div className="flex justify-end gap-3">
+                                <button onClick={() => setEditingNotesId(null)} className="px-4 py-1.5 text-xs font-bold text-amber-700 hover:bg-amber-100 rounded-lg transition-colors">Annulla</button>
+                                <button onClick={(e) => handleSaveNotes(e, patient.id)} className="px-6 py-1.5 bg-amber-600 text-white rounded-lg text-xs font-black shadow-sm active:scale-95 transition-all">SALVA NOTA</button>
+                              </div>
+                          </div>
+                        </td>
+                      </tr>
+                    )}
+                  </React.Fragment>
                 ))}
               </tbody>
             </table>
