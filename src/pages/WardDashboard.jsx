@@ -10,11 +10,22 @@ const WardDashboard = () => {
   const [filter, setFilter] = useState('All');
   const [editingNotesId, setEditingNotesId] = useState(null);
   const [tempNotes, setTempNotes] = useState('');
+  const [swipedPatientId, setSwipedPatientId] = useState(null);
+  const [touchStartX, setTouchStartX] = useState(null);
 
   // Filter out archived patients. Assume active unless explicitly archived or discharged
   const activePatients = patients.filter(p => p.status !== 'Archived' && p.status !== 'Discharged');
 
   const daysSinceOp = (p) => Math.floor((new Date() - new Date(p.operationDate)) / (1000 * 60 * 60 * 24));
+
+  const getDayLabel = (days) => {
+    const labels = [
+      "Prima giornata", "Seconda giornata", "Terza giornata", 
+      "Quarta giornata", "Quinta giornata", "Sesta giornata", 
+      "Settima giornata", "Ottava giornata", "Nona giornata", "Decima giornata"
+    ];
+    return labels[days] || `${days + 1}ª giornata`;
+  };
 
   // RX ui status based on rxStatus field (same field used in PatientDetailPage)
   // 'hidden' = <48h, 'needed' = >=48h not requested, 'requested' = requested not done, 'done' = Eseguita
@@ -54,6 +65,25 @@ const WardDashboard = () => {
 
   const getInitials = (name, surname) => {
     return `${name?.charAt(0) || ''}${surname?.charAt(0) || ''}`.toUpperCase();
+  };
+
+  const handleDischarge = (e, patient) => {
+    e.stopPropagation();
+    if (window.confirm(`Sei sicuro di voler dimettere ${patient.firstName} ${patient.lastName}?`)) {
+      updatePatient(patient.id, { status: 'Discharged' });
+      setSwipedPatientId(null);
+    }
+  };
+
+  const handleTouchStart = (e) => {
+    setTouchStartX(e.targetTouches[0].clientX);
+  };
+
+  const handleTouchMove = (e, id) => {
+    const touchX = e.targetTouches[0].clientX;
+    const diff = touchStartX - touchX;
+    if (diff > 70) setSwipedPatientId(id);
+    if (diff < -70) setSwipedPatientId(null);
   };
 
   const handleEditNotes = (e, patient) => {
@@ -104,18 +134,37 @@ const WardDashboard = () => {
         {/* Mobile View: Cards */}
         <div className="md:hidden flex flex-col gap-4 pb-32">
           {sortedPatients.map(patient => (
-            <div 
-              key={patient.id} 
-              onClick={() => navigate(`/patient/${patient.id}`)}
-              className="bg-white rounded-2xl shadow-[0_2px_12px_rgba(0,0,0,0.06)] overflow-hidden border border-gray-100 transition-all active:scale-[0.98]"
-            >
-              <div className="p-5 flex flex-col gap-4">
-                {/* Card Header: Name, Badge, Status Icon */}
-                <div className="flex items-start justify-between">
-                  <div className="flex flex-col gap-0.5">
-                    <h3 className="text-xl font-bold text-gray-900 leading-tight">
-                      {patient.firstName} {patient.lastName}
-                    </h3>
+            <div key={patient.id} className="relative overflow-hidden rounded-2xl">
+              {/* Swipe Action (Background) */}
+              <div className="absolute inset-0 bg-red-600 flex justify-end items-center px-8 text-white">
+                <button 
+                  onClick={(e) => handleDischarge(e, patient)}
+                  className="flex flex-col items-center gap-1 active:scale-90 transition-transform"
+                >
+                  <span className="material-symbols-outlined text-3xl">logout</span>
+                  <span className="text-[10px] font-black uppercase tracking-widest">Dimetti</span>
+                </button>
+              </div>
+
+              {/* Patient Card (Foreground) */}
+              <div 
+                onClick={() => navigate(`/patient/${patient.id}`)}
+                onTouchStart={handleTouchStart}
+                onTouchMove={(e) => handleTouchMove(e, patient.id)}
+                style={{ transform: swipedPatientId === patient.id ? 'translateX(-100px)' : 'translateX(0)' }}
+                className="relative bg-white rounded-2xl shadow-[0_2px_12px_rgba(0,0,0,0.06)] border border-gray-100 transition-transform duration-300 ease-out z-10"
+              >
+                <div className="p-5 flex flex-col gap-4">
+                  {/* Card Header: Name, Badge, Status Icon */}
+                  <div className="flex items-start justify-between">
+                    <div className="flex flex-col gap-0.5">
+                      <h3 className="text-xl font-bold text-gray-900 leading-tight">
+                        {patient.firstName} {patient.lastName}
+                      </h3>
+                      {/* Day Counter */}
+                      <p className="text-[10px] font-bold text-gray-500 uppercase tracking-tight mb-1">
+                        {new Date(patient.operationDate).toLocaleDateString()} • {getDayLabel(daysSinceOp(patient))}
+                      </p>
                     <div className="flex items-center gap-2 mt-1">
                       <div 
                         onClick={(e) => { e.stopPropagation(); updatePatient(patient.id, { location: patient.location === 'Reparto' ? 'Terapia Intensiva' : 'Reparto' }); }}
@@ -314,6 +363,7 @@ const WardDashboard = () => {
                 </div>
               </div>
             </div>
+          </div>
           ))}
           {sortedPatients.length === 0 && (
              <div className="text-center py-12 opacity-50">
@@ -405,7 +455,12 @@ const WardDashboard = () => {
                               </div>
                             )}
                             </div>
-                            <div className="text-xs text-on-surface-variant font-medium">Intervento: {new Date(patient.operationDate).toLocaleDateString()}</div>
+                            <div className="text-xs text-on-surface-variant font-medium flex items-center gap-2">
+                              <span>Intervento: {new Date(patient.operationDate).toLocaleDateString()}</span>
+                              <span className="px-1.5 py-0.5 bg-surface-container-high rounded text-[9px] font-bold text-primary uppercase tracking-tighter">
+                                {getDayLabel(daysSinceOp(patient))}
+                              </span>
+                            </div>
                           </div>
                         </div>
                       </td>
