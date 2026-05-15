@@ -61,6 +61,15 @@ const MainLayout = ({ setIsSettingsOpen }) => {
             <span className="material-symbols-outlined" style={{ fontVariationSettings: location.pathname === '/archive' ? "'FILL' 1" : "" }}>archive</span>
             <span>Archivio</span>
           </NavLink>
+          <a 
+            href="https://1drv.ms/i/c/1463450412a5421e/IQCOVSR2aP7_Q580gCIQAPpsAd2rv9-xl1lC03oZIf_cf78?e=2DreF8" 
+            target="_blank" 
+            rel="noopener noreferrer"
+            className="flex items-center gap-3 px-4 py-3 text-slate-600 dark:text-slate-400 hover:text-[#005dac] hover:bg-white/50 dark:hover:bg-slate-700/50 rounded-xl transition-all duration-200 font-manrope text-sm font-medium"
+          >
+            <span className="material-symbols-outlined">menu_book</span>
+            <span>Protocollo ERAS</span>
+          </a>
         </nav>
 
         <div className="pt-4 border-t border-outline-variant/20 space-y-1">
@@ -89,6 +98,15 @@ const MainLayout = ({ setIsSettingsOpen }) => {
           </div>
 
           <div className="flex items-center gap-2 md:gap-4">
+            <a 
+              href="https://1drv.ms/i/c/1463450412a5421e/IQCOVSR2aP7_Q580gCIQAPpsAd2rv9-xl1lC03oZIf_cf78?e=2DreF8" 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className="p-2 text-slate-600 dark:text-slate-400 hover:bg-[#f2f4f5] dark:hover:bg-slate-800 rounded-full transition-colors active:scale-90 shrink-0 md:hidden"
+              title="Protocollo ERAS"
+            >
+              <span className="material-symbols-outlined">menu_book</span>
+            </a>
             <button onClick={() => setIsTasksOpen(true)} className="p-2 text-slate-600 dark:text-slate-400 hover:bg-[#f2f4f5] dark:hover:bg-slate-800 rounded-full transition-colors relative active:scale-90 shrink-0">
               <span className="material-symbols-outlined">notifications</span>
               {pendingTasks > 0 && (
