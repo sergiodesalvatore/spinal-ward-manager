@@ -1,124 +1,143 @@
-import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
-import { supabase } from '../lib/supabase';
-
-const STORAGE_KEY = 'spine-ward-patients';
-const PatientContext = createContext();
-
-export const PatientProvider = ({ children }) => {
-  const [patients, setPatients] = useState([]);
-  const [isSyncing, setIsSyncing] = useState(false);
-  const initialized = useRef(false);
-  useEffect(() => {
-    // Initial fetch from Supabase
-    const fetchPatients = async () => {
-      setIsSyncing(true);
-      const { data, error } = await supabase
-        .from('patients')
-        .select('*')
-        .order('operationDate', { ascending: false });
-
-      if (error) {
-        console.error("Supabase fetch failed", error);
-        // Fallback to local storage if offline or error
-        const local = localStorage.getItem(STORAGE_KEY);
-        if (local) setPatients(JSON.parse(local));
-      } else {
-        setPatients(data || []);
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
-      }
-      setIsSyncing(false);
-      initialized.current = true;
-    };
-
-    fetchPatients();
-
-    // Setup Real-time Subscription
-    const channel = supabase
-      .channel('schema-db-changes')
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'patients'
-        },
-        (payload) => {
-          // Whenever something changes on the server, we fetch the fresh list
-          // This handles cases where multiple users update different patients
-          fetchPatients();
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
+import { useCallback, useEffect, useRef, useState } from "react";
+import { PatientContext } from "../lib/patientContext";
+import { apiRequest } from "../lib/auth";
+import { demoPatients } from "../lib/demo";
+export function PatientProvider({ children, demo = false }) {
+  const [patients, setPatients] = useState(() => (demo ? demoPatients() : []));
+  const [isSyncing, setIsSyncing] = useState(!demo);
+  const [error, setError] = useState("");
+  const [lastSynced, setLastSynced] = useState(null);
+  const [pending, setPending] = useState([]);
+  const [role, setRole] = useState(demo ? "admin" : "staff");
+  const current = useRef(patients);
+  const sequence = useRef(0);
+  const fetching = useRef(false);
+  const busy = useRef(new Set());
+  const replace = useCallback((next) => {
+    current.current = next;
+    setPatients(next);
   }, []);
-
-  const addPatient = async (patient) => {
-    // Optimistic UI
-    const tempPatients = [...patients, patient];
-    setPatients(tempPatients);
-    
-    const { error } = await supabase.from('patients').insert([patient]);
-    if (error) {
-      console.error("Supabase insert failed", error);
-      // Revert if failed
-      setPatients(patients);
-    }
-  };
-
-  const updatePatient = async (id, newFlags) => {
-    // Optimistic UI updates are handled implicitly by keeping local state
-    // But we need to update the server
-    const updated = patients.map(p => {
-      if (p.id === id) {
-        const updatedObj = { ...p, ...newFlags };
-        if (newFlags.diariaUpdated === true) {
-          updatedObj.diariaUpdatedAt = new Date().toISOString();
-        } else if (newFlags.diariaUpdated === false) {
-          updatedObj.diariaUpdatedAt = null;
-        }
-        return updatedObj;
+  const refresh = useCallback(async () => {
+    if (demo || fetching.current || busy.current.size) return;
+    fetching.current = true;
+    const generation = sequence.current;
+    setIsSyncing(true);
+    try {
+      const result = await apiRequest("/api/patients");
+      if (sequence.current === generation) {
+        replace(result.patients);
+        setRole(result.role);
+        setLastSynced(new Date());
+        setError("");
       }
-      return p;
-    });
-
-    setPatients(updated);
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
-
-    const finalUpdate = { ...newFlags };
-    if (newFlags.diariaUpdated === true) {
-      finalUpdate.diariaUpdatedAt = new Date().toISOString();
-    } else if (newFlags.diariaUpdated === false) {
-      finalUpdate.diariaUpdatedAt = null;
+    } catch (e) {
+      setError(e.message);
+      if ([401, 403].includes(e.status)) {
+        replace([]);
+        setLastSynced(null);
+        setRole("staff");
+      }
+    } finally {
+      fetching.current = false;
+      setIsSyncing(false);
     }
-
-    const { error } = await supabase
-      .from('patients')
-      .update(finalUpdate)
-      .eq('id', id);
-
-    if (error) {
-      console.error("Supabase update failed", error);
+  }, [demo, replace]);
+  useEffect(() => {
+    // Clinical records stay in memory: no new browser-storage cache.
+    const startup = setTimeout(refresh, 0);
+    const visibleRefresh = () => {
+      if (!document.hidden && navigator.onLine) refresh();
+    };
+    const timer = setInterval(visibleRefresh, 45000);
+    window.addEventListener("online", visibleRefresh);
+    window.addEventListener("focus", visibleRefresh);
+    document.addEventListener("visibilitychange", visibleRefresh);
+    return () => {
+      clearTimeout(startup);
+      clearInterval(timer);
+      window.removeEventListener("online", visibleRefresh);
+      window.removeEventListener("focus", visibleRefresh);
+      document.removeEventListener("visibilitychange", visibleRefresh);
+    };
+  }, [refresh]);
+  const mutate = async (method, id, changes = {}, expectedVersion) => {
+    if (busy.current.has(id)) return false;
+    if (!demo && !navigator.onLine) {
+      setError(
+        "Sei offline. La modifica non è stata salvata: riconnettiti e riprova.",
+      );
+      return false;
+    }
+    const original = current.current.find((p) => p.id === id);
+    const data = { ...changes };
+    if ("diariaUpdated" in data)
+      data.diariaUpdatedAt = data.diariaUpdated
+        ? new Date().toISOString()
+        : null;
+    busy.current.add(id);
+    setPending([...busy.current]);
+    sequence.current += 1;
+    try {
+      let saved;
+      if (demo)
+        saved = {
+          ...original,
+          ...data,
+          id,
+          _version: (original?._version || 0) + 1,
+        };
+      else {
+        const result = await apiRequest("/api/patients", {
+          method,
+          body: JSON.stringify({
+            id,
+            data,
+            version: expectedVersion ?? original?._version,
+          }),
+        });
+        saved = result.patient;
+      }
+      replace(
+        method === "DELETE"
+          ? current.current.filter((p) => p.id !== id)
+          : method === "POST"
+            ? [...current.current, saved]
+            : current.current.map((p) => (p.id === id ? saved : p)),
+      );
+      setLastSynced(new Date());
+      setError("");
+      return true;
+    } catch (e) {
+      setError(e.message);
+      if ([401, 403].includes(e.status)) {
+        replace([]);
+        setLastSynced(null);
+        setRole("staff");
+      }
+      return false;
+    } finally {
+      busy.current.delete(id);
+      setPending([...busy.current]);
     }
   };
-
-  const deletePatient = async (id) => {
-    const updated = patients.filter(p => p.id !== id);
-    setPatients(updated);
-    
-    const { error } = await supabase.from('patients').delete().eq('id', id);
-    if (error) console.error("Supabase delete failed", error);
-  };
-
   return (
-    <PatientContext.Provider value={{
-      patients, isSyncing, addPatient, updatePatient, deletePatient
-    }}>
+    <PatientContext.Provider
+      value={{
+        patients,
+        isSyncing,
+        error,
+        lastSynced,
+        pending,
+        demo,
+        refresh,
+        role,
+        addPatient: (p) => mutate("POST", p.id, p),
+        updatePatient: (id, changes, expectedVersion) =>
+          mutate("PATCH", id, changes, expectedVersion),
+        deletePatient: (id) => mutate("DELETE", id),
+      }}
+    >
       {children}
     </PatientContext.Provider>
   );
-};
-
-export const usePatientContext = () => useContext(PatientContext);
+}

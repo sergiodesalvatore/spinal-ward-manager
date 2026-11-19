@@ -1,0 +1,9 @@
+.env
+.env.*
+.test-session.local
+.taste-skill
+.git
+node_modules
+tests
+scripts
+db

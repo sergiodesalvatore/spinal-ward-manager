@@ -4,10 +4,10 @@
  */
 export const isToday = (dateString) => {
   if (!dateString) return false;
-  
+
   const date = new Date(dateString);
   const today = new Date();
-  
+
   return (
     date.getDate() === today.getDate() &&
     date.getMonth() === today.getMonth() &&

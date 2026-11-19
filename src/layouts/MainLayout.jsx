@@ -1,158 +1,157 @@
-import React, { useState } from 'react';
-import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
-import { usePatientStore } from '../store/usePatientStore';
-import TasksModal from '../components/TasksModal';
-import { isToday } from '../utils/dateUtils';
-
-const MainLayout = ({ setIsSettingsOpen }) => {
-  const location = useLocation();
-  const navigate = useNavigate();
-  const { patients } = usePatientStore();
-  const [isTasksOpen, setIsTasksOpen] = useState(false);
-
-  const activePatients = patients.filter(p => p.status !== 'Archived' && p.status !== 'Discharged');
-  const pendingTasks = activePatients.filter(p => {
-    if (!isToday(p.diariaUpdatedAt)) return true;
-    const diffTime = Math.abs(new Date() - new Date(p.operationDate));
-    const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
-    if (p.hasCV && diffDays >= 2) return true;
-    if (p.hasDrainage && diffDays >= 2) return true;
-    return false;
-  }).length;
-
-  // Helper function to determine if a link is active based on standard matching
-  const getLinkClasses = ({ isActive }) => {
-    return isActive
-      ? "flex items-center gap-3 px-4 py-3 bg-white dark:bg-slate-900 text-[#005dac] rounded-xl shadow-sm font-manrope text-sm font-bold transition-all duration-200"
-      : "flex items-center gap-3 px-4 py-3 text-slate-600 dark:text-slate-400 hover:text-[#005dac] hover:bg-white/50 dark:hover:bg-slate-700/50 rounded-xl transition-all duration-200 font-manrope text-sm font-medium";
-  };
-
-  const getMobileLinkClasses = ({ isActive }) => {
-    return isActive
-      ? "flex flex-col items-center justify-center bg-[#005dac] text-white rounded-2xl px-5 py-2 active:scale-90 transition-transform duration-300 shadow-sm"
-      : "flex flex-col items-center justify-center text-[#414752] dark:text-slate-400 px-5 py-2 hover:bg-[#f2f4f5] dark:hover:bg-slate-800 active:scale-90 transition-transform duration-300 rounded-2xl";
-  };
-
+import { useState } from "react";
+import { NavLink, Outlet, Link } from "react-router-dom";
+import {
+  LayoutList,
+  Plus,
+  Archive,
+  ClipboardList,
+  Settings,
+  LogOut,
+  BookOpen,
+  RefreshCw,
+} from "lucide-react";
+import Brand from "../components/Brand";
+import SettingsModal from "../components/SettingsModal";
+import { usePatientStore } from "../store/usePatientStore";
+const protocol =
+  "https://1drv.ms/i/c/1463450412a5421e/IQCOVSR2aP7_Q580gCIQAPpsAd2rv9-xl1lC03oZIf_cf78?e=2DreF8";
+const links = [
+  { to: "/", label: "Pazienti", Icon: LayoutList },
+  { to: "/handover", label: "Consegne", Icon: ClipboardList },
+  { to: "/archive", label: "Archivio", Icon: Archive },
+];
+export default function MainLayout({ user, onSignOut }) {
+  const [settings, setSettings] = useState(false);
+  const { demo, isSyncing, lastSynced, error, refresh, pending } =
+    usePatientStore();
+  const status = demo
+    ? "Ambiente dimostrativo"
+    : pending.length
+      ? "Salvataggio…"
+      : isSyncing
+        ? "Sincronizzazione…"
+        : error
+          ? "Da riconnettere"
+          : lastSynced
+            ? `Aggiornato alle ${lastSynced.toLocaleTimeString("it-IT", { hour: "2-digit", minute: "2-digit" })}`
+            : "In attesa di collegamento";
   return (
-    <div className="flex min-h-screen bg-background text-on-surface">
-      {/* SideNavBar (Desktop Only) */}
-      <aside className="hidden md:flex h-screen w-64 fixed left-0 top-0 bg-[#f2f4f5] dark:bg-slate-800 flex-col p-4 space-y-2 border-r border-[#c1c6d4]/15 z-50">
-        <div className="mb-8 px-2 mt-2">
-          <div className="flex items-center gap-3 mb-6">
-            <div className="w-10 h-10 rounded-xl bg-primary flex items-center justify-center text-on-primary shadow-sm">
-              <span className="material-symbols-outlined" style={{ fontVariationSettings: "'FILL' 1" }}>clinical_notes</span>
-            </div>
-            <div>
-              <h2 className="text-sm font-bold text-slate-800 dark:text-slate-100 leading-tight font-headline">Unità Operativa di Ortopedia e Traumatologia</h2>
-            </div>
-          </div>
+    <div className="app-shell">
+      <aside className="sidebar">
+        <Link to="/" className="brand-link" aria-label="Scolioward, pazienti">
+          <Brand />
+        </Link>
+        <div className="workspace-label">
+          Ortopedia e traumatologia<span>Gestione del postoperatorio</span>
         </div>
-        
-        <nav className="flex-1 space-y-1">
-          <NavLink to="/" className={getLinkClasses}>
-            <span className="material-symbols-outlined" style={{ fontVariationSettings: location.pathname === '/' ? "'FILL' 1" : "" }}>clinical_notes</span>
-            <span>Pazienti Attivi</span>
-          </NavLink>
-          <NavLink to="/add" className={getLinkClasses}>
-            <span className="material-symbols-outlined" style={{ fontVariationSettings: location.pathname === '/add' ? "'FILL' 1" : "" }}>person_add</span>
-            <span>Aggiungi Paziente</span>
-          </NavLink>
-          <NavLink to="/archive" className={getLinkClasses}>
-            <span className="material-symbols-outlined" style={{ fontVariationSettings: location.pathname === '/archive' ? "'FILL' 1" : "" }}>archive</span>
-            <span>Archivio</span>
-          </NavLink>
-          <a 
-            href="https://1drv.ms/i/c/1463450412a5421e/IQCOVSR2aP7_Q580gCIQAPpsAd2rv9-xl1lC03oZIf_cf78?e=2DreF8" 
-            target="_blank" 
-            rel="noopener noreferrer"
-            className="flex items-center gap-3 px-4 py-3 text-slate-600 dark:text-slate-400 hover:text-[#005dac] hover:bg-white/50 dark:hover:bg-slate-700/50 rounded-xl transition-all duration-200 font-manrope text-sm font-medium"
-          >
-            <span className="material-symbols-outlined">menu_book</span>
-            <span>Protocollo ERAS</span>
-          </a>
+        <nav aria-label="Navigazione principale">
+          {links.map(({ to, label, Icon }) => (
+            <NavLink end={to === "/"} key={to} to={to}>
+              <Icon size={18} />
+              {label}
+            </NavLink>
+          ))}
+          <Link to="/add">
+            <Plus size={18} />
+            Nuovo paziente
+          </Link>
         </nav>
-
-        <div className="pt-4 border-t border-outline-variant/20 space-y-1">
-          {pendingTasks > 0 && (
-            <button onClick={() => setIsTasksOpen(true)} className="w-full mb-4 py-3 px-4 bg-error-container text-on-error-container rounded-xl font-bold text-xs flex items-center justify-center gap-2 transition-transform active:scale-95">
-              <span className="material-symbols-outlined text-sm">notifications_active</span>
-              Da Fare ({pendingTasks})
-            </button>
-          )}
-          <button className="w-full flex items-center gap-3 px-4 py-2 text-slate-600 dark:text-slate-400 hover:text-[#005dac] hover:bg-white/50 dark:hover:bg-slate-700/50 rounded-xl transition-all duration-200 font-manrope text-sm font-medium">
-            <span className="material-symbols-outlined">help</span>
-            <span>Supporto</span>
+        <div className="sidebar-bottom">
+          <a href={protocol} target="_blank" rel="noreferrer">
+            <BookOpen size={18} />
+            Protocollo ERAS
+          </a>
+          <button onClick={() => setSettings(true)}>
+            <Settings size={18} />
+            Impostazioni
           </button>
+          <div className="account-row">
+            <span className="initials">
+              {demo
+                ? "D"
+                : (user?.name || user?.email || "S").slice(0, 2).toUpperCase()}
+            </span>
+            <span>
+              {demo ? "Modalità demo" : user?.name || "Spine team"}
+              <small>{demo ? "Solo dati di esempio" : user?.email}</small>
+            </span>
+            <button
+              className="icon-button"
+              onClick={onSignOut}
+              aria-label={demo ? "Esci dalla demo" : "Esci dal tuo account"}
+            >
+              <LogOut size={17} />
+            </button>
+          </div>
         </div>
       </aside>
-
-      {/* Main Content Canvas */}
-      <main className="flex-1 md:ml-64 min-h-screen flex flex-col pb-24 md:pb-0 relative">
-        {/* TopAppBar */}
-        <header className="flex justify-between items-center w-full px-4 md:px-8 py-3 md:py-4 sticky top-0 z-40 bg-[#f8fafb]/80 dark:bg-slate-900/80 backdrop-blur-md border-b border-outline-variant/10 md:border-none">
-          <div className="flex items-center gap-3 md:gap-8">
-            <div className="md:hidden w-8 h-8 rounded-full bg-primary-container flex items-center justify-center overflow-hidden shrink-0">
-               <span className="material-symbols-outlined text-primary text-sm" style={{ fontVariationSettings: "'FILL' 1" }}>medical_services</span>
-            </div>
-            <span className="text-xl font-bold text-[#005dac] dark:text-blue-400 tracking-tight font-headline uppercase">scolioward</span>
-          </div>
-
-          <div className="flex items-center gap-2 md:gap-4">
-            <a 
-              href="https://1drv.ms/i/c/1463450412a5421e/IQCOVSR2aP7_Q580gCIQAPpsAd2rv9-xl1lC03oZIf_cf78?e=2DreF8" 
-              target="_blank" 
-              rel="noopener noreferrer"
-              className="p-2 text-slate-600 dark:text-slate-400 hover:bg-[#f2f4f5] dark:hover:bg-slate-800 rounded-full transition-colors active:scale-90 shrink-0 md:hidden"
-              title="Protocollo ERAS"
-            >
-              <span className="material-symbols-outlined">menu_book</span>
-            </a>
-            <button onClick={() => setIsTasksOpen(true)} className="p-2 text-slate-600 dark:text-slate-400 hover:bg-[#f2f4f5] dark:hover:bg-slate-800 rounded-full transition-colors relative active:scale-90 shrink-0">
-              <span className="material-symbols-outlined">notifications</span>
-              {pendingTasks > 0 && (
-                <span className="absolute top-2 right-2 w-2 h-2 bg-error rounded-full border-2 border-background"></span>
-              )}
-            </button>
-            <button 
-              onClick={() => setIsSettingsOpen(true)}
-              className="p-2 text-slate-600 dark:text-slate-400 hover:bg-[#f2f4f5] dark:hover:bg-slate-800 rounded-full transition-colors active:scale-90 shrink-0"
-              title="scolioward Settings"
-            >
-              <span className="material-symbols-outlined">settings</span>
-            </button>
-            <div className="hidden md:block h-8 w-[1px] bg-outline-variant/30 mx-2"></div>
-            <div className="hidden md:flex items-center gap-3">
-              <span className="text-xs font-semibold text-on-surface-variant">Spine Team</span>
-              <div className="w-10 h-10 rounded-full overflow-hidden border border-outline-variant/30 shadow-sm shrink-0">
-                 <img src="https://lh3.googleusercontent.com/aida-public/AB6AXuAXMyjhSyH-bRvvem3BqfvGx1Vr-8VrSRm36WLvbm6zjtS7A0Cx9igjnBwp7L3hd6g30OPubOCNQzHNz1f2SZ9VlCQ6BM45tSf9AZNn4nL6juI3-rLX56pmBo-JzVikfC7vyCUnuS4mjghl3oAszsDLqnLriR8MBauB9TwDG1IEyUF6gp8XTLYLTqqQ0OVznD_F6V_FyaTnKuZv8C6U4_QuSv7AaVvXWOzCIMyt1q4pCO86NhTGOAQvgzln5-lDhOD7a754D9ED56CV" alt="Profile" className="w-full h-full object-cover" />
-              </div>
-            </div>
-          </div>
+      <div className="app-body">
+        <header className="mobile-header">
+          <Link to="/" className="brand-link">
+            <Brand />
+          </Link>
+          <button
+            className="icon-button"
+            onClick={() => setSettings(true)}
+            aria-label="Impostazioni"
+          >
+            <Settings size={20} />
+          </button>
         </header>
-
-        {/* Dynamic Route Content */}
-        <Outlet />
-      </main>
-
-      {/* Mobile Bottom Navigation */}
-      <nav className="md:hidden fixed bottom-0 left-0 w-full z-50 flex justify-around items-center px-4 pb-6 pt-3 bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl rounded-t-3xl shadow-[0_-8px_24px_rgba(25,28,29,0.06)] border-t border-outline-variant/10">
-        <NavLink to="/" className={getMobileLinkClasses}>
-          <span className="material-symbols-outlined mb-0.5" style={{ fontVariationSettings: location.pathname === '/' ? "'FILL' 1" : "" }}>personal_injury</span>
-          <span className="text-[10px] font-bold font-inter uppercase tracking-widest">Attivi</span>
-        </NavLink>
-        <NavLink to="/add" className={getMobileLinkClasses}>
-          <span className="material-symbols-outlined mb-0.5" style={{ fontVariationSettings: location.pathname === '/add' ? "'FILL' 1" : "" }}>add_circle</span>
-          <span className="text-[10px] font-bold font-inter uppercase tracking-widest">Nuovo</span>
-        </NavLink>
-        <NavLink to="/archive" className={getMobileLinkClasses}>
-          <span className="material-symbols-outlined mb-0.5" style={{ fontVariationSettings: location.pathname === '/archive' ? "'FILL' 1" : "" }}>inventory_2</span>
-          <span className="text-[10px] font-bold font-inter uppercase tracking-widest">Archivio</span>
+        <div className="connection-bar">
+          <span className="scope-label">
+            Spine team <span>/</span> Giro visita
+          </span>
+          <button
+            className="sync-status"
+            onClick={refresh}
+            disabled={isSyncing || demo}
+            title="Aggiorna i dati"
+          >
+            <RefreshCw size={13} className={isSyncing ? "spinning" : ""} />
+            {status}
+          </button>
+        </div>
+        {demo && (
+          <div className="demo-notice">
+            Demo con pazienti fittizi. Le modifiche si azzerano ricaricando la
+            pagina.
+          </div>
+        )}
+        <main className="canvas">
+          <Outlet />
+        </main>
+        <footer className="app-footer">
+          <span>Scolioward · Spine team</span>
+          <span>
+            {new Intl.DateTimeFormat("it-IT", {
+              timeZone: "Europe/Rome",
+              weekday: "long",
+              day: "numeric",
+              month: "long",
+              year: "numeric",
+            }).format(new Date())}
+          </span>
+        </footer>
+      </div>
+      <nav className="bottom-nav" aria-label="Navigazione mobile">
+        {links.map(({ to, label, Icon }) => (
+          <NavLink end={to === "/"} key={to} to={to}>
+            <Icon size={20} />
+            <span>{label}</span>
+          </NavLink>
+        ))}
+        <NavLink to="/add">
+          <Plus size={20} />
+          <span>Nuovo</span>
         </NavLink>
       </nav>
-
-      {isTasksOpen && <TasksModal onClose={() => setIsTasksOpen(false)} />}
+      {settings && (
+        <SettingsModal
+          onClose={() => setSettings(false)}
+          onSignOut={onSignOut}
+        />
+      )}
     </div>
   );
-};
-
-export default MainLayout;
+}

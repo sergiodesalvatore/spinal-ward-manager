@@ -1,666 +1,335 @@
-import React, { useState } from 'react';
-import { NavLink, useNavigate } from 'react-router-dom';
-import { usePatientStore } from '../store/usePatientStore';
-import { isToday } from '../utils/dateUtils';
-
-const WardDashboard = () => {
-  const { patients, updatePatient } = usePatientStore();
-  const navigate = useNavigate();
-  const [tooltipPatientId, setTooltipPatientId] = useState(null);
-  const [filter, setFilter] = useState('All');
-  const [editingNotesId, setEditingNotesId] = useState(null);
-  const [tempNotes, setTempNotes] = useState('');
-  const [swipedPatientId, setSwipedPatientId] = useState(null);
-  const [touchStartX, setTouchStartX] = useState(null);
-
-  // Filter out archived patients. Assume active unless explicitly archived or discharged
-  const activePatients = patients.filter(p => p.status !== 'Archived' && p.status !== 'Discharged');
-
-  const daysSinceOp = (p) => Math.floor((new Date() - new Date(p.operationDate)) / (1000 * 60 * 60 * 24));
-
-  const getDayLabel = (days) => {
-    const labels = [
-      "Prima giornata", "Seconda giornata", "Terza giornata", 
-      "Quarta giornata", "Quinta giornata", "Sesta giornata", 
-      "Settima giornata", "Ottava giornata", "Nona giornata", "Decima giornata"
-    ];
-    return labels[days] || `${days + 1}ª giornata`;
-  };
-
-  // RX ui status based on rxStatus field (same field used in PatientDetailPage)
-  // 'hidden' = <48h, 'needed' = >=48h not requested, 'requested' = requested not done, 'done' = Eseguita
-  const getRxStatus = (p) => {
-    if (daysSinceOp(p) < 2) return 'hidden';
-    if (p.rxStatus === 'Eseguita') return 'done';
-    if (p.rxStatus === 'Richiesta') return 'requested';
-    return 'needed'; // null / 'Non Richiesta'
-  };
-
-  const hasPendingTasks = (p) => {
-    if (!isToday(p.diariaUpdatedAt)) return true;
-    const days = daysSinceOp(p);
-    if (p.hasCV && days >= 2) return true;
-    if (p.hasDrainage && days >= 2) return true;
-    if (days >= 2 && p.rxStatus !== 'Eseguita') return true;
-    return false;
-  };
-
-  const filteredPatients = activePatients.filter(p => {
-    if (filter === 'All') return true;
-    return p.location === filter;
-  });
-
-  const sortedPatients = [...filteredPatients].sort((a, b) => {
-    if (a.location === 'Terapia Intensiva' && b.location !== 'Terapia Intensiva') return -1;
-    if (a.location !== 'Terapia Intensiva' && b.location === 'Terapia Intensiva') return 1;
-    return new Date(b.operationDate) - new Date(a.operationDate);
-  });
-
-  const icuCount = activePatients.filter(p => p.location === 'Terapia Intensiva').length;
-  // Temporary fake alert logic for visual match
-  const alertCount = activePatients.filter(p => {
-    const days = daysSinceOp(p);
-    return (p.hasDrainage && days >= 2) || (p.hasCV && days >= 2);
-  }).length; 
-
-  const getInitials = (name, surname) => {
-    return `${name?.charAt(0) || ''}${surname?.charAt(0) || ''}`.toUpperCase();
-  };
-
-  const handleDischarge = (e, patient) => {
-    e.stopPropagation();
-    if (window.confirm(`Sei sicuro di voler dimettere ${patient.firstName} ${patient.lastName}?`)) {
-      updatePatient(patient.id, { status: 'Discharged' });
-      setSwipedPatientId(null);
-    }
-  };
-
-  const handleTouchStart = (e) => {
-    setTouchStartX(e.targetTouches[0].clientX);
-  };
-
-  const handleTouchMove = (e, id) => {
-    const touchX = e.targetTouches[0].clientX;
-    const diff = touchStartX - touchX;
-    if (diff > 70) setSwipedPatientId(id);
-    if (diff < -70) setSwipedPatientId(null);
-  };
-
-  const handleEditNotes = (e, patient) => {
-    e.stopPropagation();
-    if (editingNotesId === patient.id) {
-      setEditingNotesId(null);
-    } else {
-      setEditingNotesId(patient.id);
-      setTempNotes(patient.notes || '');
-    }
-  };
-
-  const handleSaveNotes = async (e, id) => {
-    e.stopPropagation();
-    await updatePatient(id, { notes: tempNotes });
-    setEditingNotesId(null);
-  };
-
+import { useState } from "react";
+import { Link } from "react-router-dom";
+import {
+  Plus,
+  Search,
+  ArrowUpRight,
+  Check,
+  Circle,
+  SlidersHorizontal,
+} from "lucide-react";
+import { usePatientStore } from "../store/usePatientStore";
+import {
+  patientCount,
+  activePatient,
+  patientName,
+  postOpDays,
+  diaryDone,
+  tasksFor,
+  dateLabel,
+} from "../lib/ward";
+import SyncMessage from "../components/SyncMessage";
+export default function WardDashboard() {
+  const {
+    patients,
+    updatePatient,
+    isSyncing,
+    pending,
+    error,
+    demo,
+    lastSynced,
+  } = usePatientStore();
+  const [query, setQuery] = useState("");
+  const [location, setLocation] = useState("Tutti");
+  const [attention, setAttention] = useState(false);
+  const unavailable = !demo && !lastSynced;
+  const active = patients.filter(activePatient);
+  const scoped = active.filter(
+    (p) =>
+      (location === "Tutti" || p.location === location) &&
+      `${patientName(p)} ${p.bedNumber} ${p.diagnosis}`
+        .toLowerCase()
+        .includes(query.toLowerCase()),
+  );
+  const filtered = scoped
+    .filter((p) => !attention || tasksFor(p).length)
+    .sort((a, b) =>
+      (a.bedNumber || "").localeCompare(b.bedNumber || "", "it", {
+        numeric: true,
+      }),
+    );
+  const diaries = scoped.filter((p) => !diaryDone(p)).length;
+  const devices = scoped.filter(
+    (p) => postOpDays(p.operationDate) >= 2 && (p.hasDrainage || p.hasCV),
+  ).length;
   return (
-    <div className="md:p-8 flex-1 overflow-y-auto">
-      <div className="max-w-7xl mx-auto p-4 md:p-0">
-        
-        {/* Header - Desktop & Mobile */}
-        <div className="flex flex-col md:flex-row md:justify-between md:items-end mb-6 md:mb-8 gap-4 mt-2 md:mt-0">
-          <div>
-            <h1 className="text-2xl md:text-3xl font-extrabold tracking-tight text-on-surface mb-1 md:mb-2 font-headline">Pazienti Attivi</h1>
-            <p className="text-sm text-on-surface-variant font-body">Monitoraggio clinico post-operatorio in tempo reale.</p>
-          </div>
-          <div className="flex bg-surface-container-high p-1 rounded-full overflow-x-auto w-full md:w-auto">
-            <button 
-              onClick={() => setFilter('All')}
-              className={`px-6 py-2 rounded-full text-sm font-bold whitespace-nowrap transition-colors ${filter === 'All' ? 'bg-white text-primary shadow-sm' : 'text-on-surface-variant hover:text-on-surface'}`}>
-              Tutti
-            </button>
-            <button 
-              onClick={() => setFilter('Terapia Intensiva')}
-              className={`px-6 py-2 rounded-full text-sm font-bold whitespace-nowrap transition-colors ${filter === 'Terapia Intensiva' ? 'bg-white text-primary shadow-sm' : 'text-on-surface-variant hover:text-on-surface'}`}>
-              Terapia Intensiva
-            </button>
-            <button 
-               onClick={() => setFilter('Reparto')}
-               className={`px-6 py-2 rounded-full text-sm font-bold whitespace-nowrap transition-colors ${filter === 'Reparto' ? 'bg-white text-primary shadow-sm' : 'text-on-surface-variant hover:text-on-surface'}`}>
-              Reparto
-            </button>
-          </div>
+    <>
+      <div className="page-heading">
+        <div>
+          <h1>Pazienti in reparto</h1>
+          <p>Il punto sul postoperatorio, un paziente alla volta.</p>
         </div>
-
-        {/* Mobile View: Cards */}
-        <div className="md:hidden flex flex-col gap-4 pb-32">
-          {sortedPatients.map(patient => (
-            <div key={patient.id} className="relative overflow-hidden rounded-2xl">
-              {/* Swipe Action (Background) */}
-              <div className="absolute inset-0 bg-red-600 flex justify-end items-center px-8 text-white">
-                <button 
-                  onClick={(e) => handleDischarge(e, patient)}
-                  className="flex flex-col items-center gap-1 active:scale-90 transition-transform"
-                >
-                  <span className="material-symbols-outlined text-3xl">logout</span>
-                  <span className="text-[10px] font-black uppercase tracking-widest">Dimetti</span>
-                </button>
-              </div>
-
-              {/* Patient Card (Foreground) */}
-              <div 
-                onClick={() => navigate(`/patient/${patient.id}`)}
-                onTouchStart={handleTouchStart}
-                onTouchMove={(e) => handleTouchMove(e, patient.id)}
-                style={{ transform: swipedPatientId === patient.id ? 'translateX(-100px)' : 'translateX(0)' }}
-                className="relative bg-white rounded-2xl shadow-[0_2px_12px_rgba(0,0,0,0.06)] border border-gray-100 transition-transform duration-300 ease-out z-10"
+        <Link to="/add" className="button primary">
+          <Plus size={17} />
+          Nuovo paziente
+        </Link>
+      </div>
+      <SyncMessage />
+      <div className="metrics-strip" aria-label="Riepilogo della selezione">
+        <div>
+          <span>Pazienti nella selezione</span>
+          <strong>{unavailable ? "—" : scoped.length}</strong>
+        </div>
+        <div>
+          <span>In terapia intensiva</span>
+          <strong>
+            {unavailable
+              ? "—"
+              : scoped.filter((p) => p.location === "Terapia Intensiva").length}
+          </strong>
+        </div>
+        <div>
+          <span>Diarie da aggiornare</span>
+          <strong>{unavailable ? "—" : diaries}</strong>
+        </div>
+        <div>
+          <span>Presidi da rivalutare</span>
+          <strong>{unavailable ? "—" : devices}</strong>
+        </div>
+      </div>
+      <section className="ward-panel" aria-labelledby="ward-list">
+        <div className="list-heading">
+          <h2 id="ward-list">
+            Giro visita{" "}
+            <span>
+              {unavailable
+                ? "In attesa dei dati"
+                : patientCount(filtered.length)}
+            </span>
+          </h2>
+          <Link to="/handover" className="text-link">
+            Apri le consegne <ArrowUpRight size={15} />
+          </Link>
+        </div>
+        <div className="list-toolbar">
+          <label className="search-field">
+            <Search size={17} />
+            <span className="sr-only">Cerca paziente, letto o diagnosi</span>
+            <input
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Cerca paziente, letto o diagnosi"
+              type="search"
+            />
+          </label>
+          <div className="filter-group">
+            <label className="select-field">
+              <SlidersHorizontal size={16} />
+              <span className="sr-only">Ubicazione</span>
+              <select
+                value={location}
+                onChange={(e) => setLocation(e.target.value)}
               >
-                <div className="p-5 flex flex-col gap-4">
-                  {/* Card Header: Name, Badge, Status Icon */}
-                  <div className="flex items-start justify-between">
-                    <div className="flex flex-col gap-0.5">
-                      <h3 className="text-xl font-bold text-gray-900 leading-tight">
-                        {patient.firstName} {patient.lastName}
-                      </h3>
-                      {/* Day Counter */}
-                      <p className="text-[10px] font-bold text-gray-500 uppercase tracking-tight mb-1">
-                        {new Date(patient.operationDate).toLocaleDateString()} • {getDayLabel(daysSinceOp(patient))}
-                      </p>
-                    <div className="flex items-center gap-2 mt-1">
-                      <div 
-                        onClick={(e) => { e.stopPropagation(); updatePatient(patient.id, { location: patient.location === 'Reparto' ? 'Terapia Intensiva' : 'Reparto' }); }}
-                        className={`px-2 py-0.5 text-[10px] font-bold rounded uppercase tracking-wider cursor-pointer active:scale-95 transition-transform ${patient.location === 'Reparto' ? 'bg-secondary-container text-on-secondary-container' : 'bg-error-container text-on-error-container'}`}
-                      >
-                        {patient.location === 'Reparto' ? 'REPARTO' : 'INTENSIVA'}
-                      </div>
-                      <div className="flex items-center gap-1.5 ml-1">
-                        <span className="text-[10px] font-bold text-gray-400">BED</span>
-                        <input 
-                          type="text" 
-                          value={patient.bedNumber || ''} 
-                          onChange={(e) => updatePatient(patient.id, { bedNumber: e.target.value })}
-                          onClick={(e) => e.stopPropagation()}
-                          placeholder="-"
-                          className="w-10 bg-gray-50 border border-gray-200 rounded px-1.5 py-0.5 text-xs font-bold text-gray-800 focus:ring-1 focus:ring-primary focus:border-primary text-center"
-                        />
-                      </div>
-                    </div>
-                  </div>
-                  
-                  <div className="flex items-start gap-2">
-                    {/* Notes Button with Badge */}
-                    <button 
-                      onClick={(e) => handleEditNotes(e, patient)}
-                      className={`relative p-2 rounded-xl transition-all ${patient.notes ? 'text-amber-500 bg-amber-50 border border-amber-100' : 'text-gray-400 hover:bg-gray-50'}`}
-                      title="Note Rapide"
-                    >
-                      <span className="material-symbols-outlined text-[24px]">sticky_note_2</span>
-                      {patient.notes && (
-                        <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-amber-500 rounded-full border-2 border-white"></span>
-                      )}
-                    </button>
-
-                    {/* Big Status Radio/Check Icon */}
-                    <button 
-                      onClick={(e) => { 
-                        e.stopPropagation(); 
-                        const currentlyUpdated = isToday(patient.diariaUpdatedAt);
-                        updatePatient(patient.id, { diariaUpdated: !currentlyUpdated, diariaUpdatedAt: new Date().toISOString() }); 
-                      }}
-                      className="shrink-0 p-1"
-                    >
-                      {isToday(patient.diariaUpdatedAt) ? (
-                        <div className="w-8 h-8 rounded-full bg-[#3CC09E] flex items-center justify-center text-white">
-                          <span className="material-symbols-outlined text-[20px] font-bold">check</span>
-                        </div>
-                      ) : (
-                        <div className="w-8 h-8 rounded-full border-2 border-gray-200 flex items-center justify-center"></div>
-                      )}
-                    </button>
-                  </div>
-                </div>
-
-                {/* Notes Preview (Mobile) */}
-                {patient.notes && editingNotesId !== patient.id && (
-                  <div 
-                    className="mx-5 mb-2 p-3 bg-amber-50/50 rounded-xl border border-amber-100/50 cursor-pointer"
-                    onClick={(e) => handleEditNotes(e, patient)}
-                  >
-                    <p className="text-[11px] text-amber-800 italic line-clamp-2">
-                      <span className="font-bold mr-1">NOTE:</span>
-                      {patient.notes}
-                    </p>
-                  </div>
-                )}
-
-                {/* Collapsible Edit Notes Area (Mobile) */}
-                {editingNotesId === patient.id && (
-                  <div 
-                    className="p-4 bg-amber-50 rounded-2xl border border-amber-100 flex flex-col gap-3 animate-in slide-in-from-top-2 duration-200" 
-                    onClick={(e) => e.stopPropagation()}
-                  >
-                    <div className="flex items-center gap-2 text-amber-800">
-                      <span className="material-symbols-outlined text-sm">edit_note</span>
-                      <span className="text-xs font-bold uppercase tracking-wider">Note Cliniche Rapide</span>
-                    </div>
-                    <textarea 
-                      autoFocus
-                      value={tempNotes}
-                      onChange={(e) => setTempNotes(e.target.value)}
-                      className="w-full bg-white border border-amber-200 rounded-xl p-3 text-sm text-gray-800 focus:ring-2 focus:ring-amber-500 outline-none min-h-[100px] shadow-inner"
-                      placeholder="Scrivi qui le note per il passaggio consegne o osservazioni rapide..."
-                    />
-                    <div className="flex justify-end gap-3">
-                      <button onClick={() => setEditingNotesId(null)} className="px-4 py-2 text-xs font-bold text-amber-700 hover:bg-amber-100 rounded-lg transition-colors">Annulla</button>
-                      <button onClick={(e) => handleSaveNotes(e, patient.id)} className="px-6 py-2 bg-amber-600 text-white rounded-xl text-xs font-black shadow-sm active:scale-95 transition-all">SALVA NOTA</button>
-                    </div>
-                  </div>
-                )}
-
-                {/* Alert Banners: CV & DRAINAGE > 48h */}
-                <div className="flex flex-col gap-2">
-                  {patient.hasCV && daysSinceOp(patient) >= 2 && (
-                    <div className="bg-[#FFE5E5] p-3 rounded-xl flex items-center gap-3 border border-[#FFD1D1]">
-                      <span className="material-symbols-outlined text-[#D32F2F] text-[24px]">warning</span>
-                      <p className="text-[11px] font-extrabold text-[#9B1C1C] uppercase tracking-tighter leading-none">
-                        RIMUOVERE CV: SUPERATE 48 ORE
-                      </p>
-                    </div>
-                  )}
-                  {patient.hasDrainage && daysSinceOp(patient) >= 2 && (
-                    <div className="bg-[#E0F2FE] p-3 rounded-xl flex items-center gap-3 border border-[#BAE6FD]">
-                      <span className="material-symbols-outlined text-[#0284C7] text-[24px]">warning</span>
-                      <p className="text-[11px] font-extrabold text-[#0369A1] uppercase tracking-tighter leading-none">
-                        RIMUOVERE DRENAGGIO: SUPERATE 48 ORE
-                      </p>
-                    </div>
-                  )}
-                </div>
-
-                {/* Control Toggles: DRAINAGE & CV */}
-                <div className="grid grid-cols-2 gap-3 mt-1">
-                  {/* Drainage Toggle */}
-                  <button 
-                    onClick={(e) => { e.stopPropagation(); updatePatient(patient.id, { hasDrainage: !patient.hasDrainage }); }}
-                    className={`flex items-center justify-between p-4 rounded-xl transition-all ${patient.hasDrainage ? 'bg-[#005FA3] text-white shadow-md' : 'bg-[#F1F5F9] text-gray-500'}`}
-                  >
-                    <span className="text-[11px] font-black uppercase tracking-widest">DRENAGGIO</span>
-                    <div className={`w-8 h-4 rounded-full relative transition-all ${patient.hasDrainage ? 'bg-white/40' : 'bg-gray-300'}`}>
-                      <div className={`absolute top-0.5 w-3 h-3 rounded-full bg-white transition-all shadow-sm ${patient.hasDrainage ? 'left-4.5' : 'left-0.5'}`}></div>
-                    </div>
-                  </button>
-
-                  {/* CV Access Toggle */}
-                  <button 
-                    onClick={(e) => { e.stopPropagation(); updatePatient(patient.id, { hasCV: !patient.hasCV }); }}
-                    className={`flex items-center justify-between p-4 rounded-xl transition-all ${patient.hasCV ? 'bg-[#3CC09E] text-white shadow-md' : 'bg-[#F1F5F9] text-gray-500'}`}
-                  >
-                    <span className="text-[11px] font-black uppercase tracking-widest">CV ACCESS</span>
-                    <div className={`w-8 h-4 rounded-full relative transition-all ${patient.hasCV ? 'bg-white/40' : 'bg-gray-300'}`}>
-                      <div className={`absolute top-0.5 w-3 h-3 rounded-full bg-white transition-all shadow-sm ${patient.hasCV ? 'left-4.5' : 'left-0.5'}`}></div>
-                    </div>
-                  </button>
-                </div>
-
-                {/* Dimissione Toggle - ONLY AFTER 48H */}
-                {daysSinceOp(patient) >= 2 && (
-                  <button 
-                    onClick={(e) => { e.stopPropagation(); updatePatient(patient.id, { writtenDischarge: !patient.writtenDischarge }); }}
-                    className={`flex items-center justify-between p-4 rounded-xl transition-all mt-1 ${patient.writtenDischarge ? 'bg-[#7C4DFF] text-white shadow-md' : 'bg-[#F1F5F9] text-gray-500'}`}
-                  >
-                    <div className="flex items-center gap-2">
-                      <span className="material-symbols-outlined text-[18px]">description</span>
-                      <span className="text-[11px] font-black uppercase tracking-widest">DIMISS. SCRITTA</span>
-                    </div>
-                    <div className={`w-8 h-4 rounded-full relative transition-all ${patient.writtenDischarge ? 'bg-white/40' : 'bg-gray-300'}`}>
-                      <div className={`absolute top-0.5 w-3 h-3 rounded-full bg-white transition-all shadow-sm ${patient.writtenDischarge ? 'left-4.5' : 'left-0.5'}`}></div>
-                    </div>
-                  </button>
-                )}
-
-                {/* RX Row - Integrated if needed, or separate pulse */}
-                {daysSinceOp(patient) >= 2 && (
-                  <button 
-                    onClick={(e) => { 
-                      e.stopPropagation(); 
-                      let nextStatus;
-                      if (patient.rxStatus === 'Eseguita') {
-                        nextStatus = 'Richiesta'; // Allow toggling back
-                      } else if (patient.rxStatus === 'Richiesta') {
-                        nextStatus = 'Eseguita';
-                      } else {
-                        nextStatus = 'Richiesta'; // From 'Da fare' (default/null)
-                      }
-                      updatePatient(patient.id, { rxStatus: nextStatus }); 
-                    }}
-                    className={`flex items-center justify-center gap-2 p-3 rounded-xl border transition-all ${
-                      patient.rxStatus === 'Eseguita'
-                        ? 'bg-emerald-100 text-emerald-700 border-emerald-200'
-                        : patient.rxStatus === 'Richiesta' 
-                          ? 'bg-amber-50 text-amber-600 border-amber-100' 
-                          : 'bg-red-50 text-red-600 border-red-100 animate-pulse'
-                    }`}
-                  >
-                    <span className="material-symbols-outlined text-sm" style={patient.rxStatus === 'Eseguita' ? { fontVariationSettings: "'FILL' 1" } : {}}>radiology</span>
-                    <span className="text-[11px] font-bold uppercase">
-                      {patient.rxStatus === 'Eseguita' ? 'RX ESEGUITA' : patient.rxStatus === 'Richiesta' ? 'RX RICHIESTA' : 'RX DA RICHIEDERE'}
-                    </span>
-                  </button>
-                )}
-
-                {/* Status Footer: Diaria */}
-                <div className="pt-4 border-t border-gray-100 flex items-center gap-2 mt-1">
-                  <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">DIARIA:</span>
-                  {isToday(patient.diariaUpdatedAt) ? (
-                    <div className="flex items-center gap-1.5">
-                      <span className="material-symbols-outlined text-[#3CC09E] text-[14px] font-bold">check</span>
-                      <span className="text-[11px] font-bold text-[#3CC09E]">
-                        Completata {patient.diariaUpdatedAt ? new Date(patient.diariaUpdatedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'OGGI'}
-                      </span>
-                    </div>
-                  ) : (
-                    <span className="text-[11px] font-bold text-gray-400">Da aggiornare</span>
-                  )}
-                </div>
-              </div>
-            </div>
+                <option>Tutti</option>
+                <option>Reparto</option>
+                <option>Terapia Intensiva</option>
+              </select>
+            </label>
+            <label className="filter-check">
+              <input
+                type="checkbox"
+                checked={attention}
+                onChange={(e) => setAttention(e.target.checked)}
+              />
+              Da rivedere
+            </label>
           </div>
-          ))}
-          {sortedPatients.length === 0 && (
-             <div className="text-center py-12 opacity-50">
-               <span className="material-symbols-outlined text-4xl mb-2">person_off</span>
-               <p className="text-sm font-bold">Nessun paziente in questa categoria.</p>
-             </div>
-          )}
         </div>
-
-        {/* Floating Bottom Navigation for Mobile */}
-        <div className="md:hidden fixed bottom-0 left-0 right-0 p-4 pb-8 bg-white border-t border-gray-100 flex justify-around items-center gap-2 z-50 shadow-[0_-4px_20px_rgba(0,0,0,0.05)] rounded-t-3xl">
-          <NavLink 
-            to="/" 
-            className={({ isActive }) => `flex flex-col items-center gap-1 flex-1 py-1 transition-all ${isActive ? 'text-[#005FA3]' : 'text-gray-400'}`}
-          >
-            <div className={`w-12 h-12 flex flex-col items-center justify-center rounded-2xl transition-all ${filter === 'All' ? 'bg-[#005FA3] text-white shadow-lg' : 'bg-transparent'}`}>
-              <span className="material-symbols-outlined text-[24px]">group</span>
-              <span className="text-[9px] font-black uppercase tracking-tighter mt-0.5">ATTIVI</span>
-            </div>
-          </NavLink>
-
-          <NavLink 
-            to="/add" 
-            className="flex flex-col items-center gap-1 flex-1 py-1 text-gray-400"
-          >
-            <div className="w-12 h-12 flex flex-col items-center justify-center rounded-2xl bg-gray-50 border border-gray-100">
-              <span className="material-symbols-outlined text-[24px]">add_circle</span>
-              <span className="text-[9px] font-black uppercase tracking-tighter mt-0.5">NUOVO</span>
-            </div>
-          </NavLink>
-
-          <NavLink 
-            to="/archive" 
-            className={({ isActive }) => `flex flex-col items-center gap-1 flex-1 py-1 transition-all ${isActive ? 'text-[#005FA3]' : 'text-gray-400'}`}
-          >
-            <div className="w-12 h-12 flex flex-col items-center justify-center rounded-2xl bg-gray-50 border border-gray-100">
-              <span className="material-symbols-outlined text-[24px]">archive</span>
-              <span className="text-[9px] font-black uppercase tracking-tighter mt-0.5">ARCHIVIO</span>
-            </div>
-          </NavLink>
-        </div>
-
-        {/* Search FAB */}
-        <div className="md:hidden fixed bottom-24 right-4 z-40">
-          <button className="w-14 h-14 rounded-3xl bg-[#005FA3] text-white shadow-xl flex items-center justify-center active:scale-95 transition-transform">
-            <span className="material-symbols-outlined text-[28px]">search</span>
-          </button>
-        </div>
-
-        {/* Desktop View: Table */}
-        <div className="hidden md:block bg-surface-container-lowest rounded-2xl shadow-sm overflow-hidden border border-outline-variant/5">
-          <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse">
-              <thead>
-                <tr className="bg-surface-container-low">
-                  <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-on-surface-variant">Nome & Cognome</th>
-                  <th className="px-4 py-4 text-xs font-bold uppercase tracking-wider text-on-surface-variant">Letto</th>
-                  <th className="px-4 py-4 text-xs font-bold uppercase tracking-wider text-on-surface-variant">Stato</th>
-                  <th className="px-4 py-3 text-center text-[10px] font-bold text-on-surface-variant uppercase tracking-widest">Dren.</th>
-                  <th className="px-4 py-3 text-center text-[10px] font-bold text-on-surface-variant uppercase tracking-widest">CV</th>
-                  <th className="px-4 py-3 text-center text-[10px] font-bold text-on-surface-variant uppercase tracking-widest">Dimiss.</th>
-                  <th className="px-4 py-3 text-center text-[10px] font-bold text-on-surface-variant uppercase tracking-widest">Diaria</th>
-                  <th className="px-4 py-3 text-center text-[10px] font-bold text-on-surface-variant uppercase tracking-widest text-center">Note</th>
-                  <th className="px-4 py-4 text-xs font-bold uppercase tracking-wider text-on-surface-variant text-center">RX</th>
-                  <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-on-surface-variant text-right">Azioni</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-outline-variant/10">
-                {sortedPatients.map(patient => (
-                  <React.Fragment key={patient.id}>
-                    <tr className="hover:bg-surface-container-low transition-colors group cursor-pointer" onClick={() => navigate(`/patient/${patient.id}`)}>
-                      <td className="px-6 py-5">
-                        <div className="flex items-center gap-3">
-                          <div className={`w-9 h-9 rounded-full flex items-center justify-center font-bold text-xs ${patient.location === 'Terapia Intensiva' ? 'bg-primary/10 text-primary' : 'bg-secondary/10 text-secondary'}`}>
-                            {getInitials(patient.firstName, patient.lastName)}
-                          </div>
-                          <div>
-                            <div className="font-bold text-on-surface relative inline-block">
-                              {patient.firstName} {patient.lastName}
-                              {hasPendingTasks(patient) && (
-                              <button type="button" className="relative w-2 h-2 bg-error rounded-full ml-2" onClick={(e) => { e.stopPropagation(); setTooltipPatientId(tooltipPatientId === patient.id ? null : patient.id); }} title="Task pendenti"></button>
-                            )}
-                            {tooltipPatientId === patient.id && (
-                              <div className="absolute z-10 mt-1 w-56 bg-surface-container-high text-on-surface p-2 rounded shadow-lg">
-                                  {!isToday(patient.diariaUpdatedAt) && <p className="text-sm py-0.5">📋 Diaria non aggiornata</p>}
-                                  {patient.hasCV && daysSinceOp(patient) >= 2 && <p className="text-sm py-0.5">🩺 CV da rimuovere ({daysSinceOp(patient)} gg)</p>}
-                                  {patient.hasDrainage && daysSinceOp(patient) >= 2 && <p className="text-sm py-0.5">💧 Drenaggio da rimuovere ({daysSinceOp(patient)} gg)</p>}
-                                  {daysSinceOp(patient) >= 2 && patient.rxStatus !== 'Eseguita' && <p className="text-sm py-0.5">🩻 RX da richiedere</p>}
-                              </div>
-                            )}
-                            </div>
-                            <div className="text-xs text-on-surface-variant font-medium flex items-center gap-2">
-                              <span>Intervento: {new Date(patient.operationDate).toLocaleDateString()}</span>
-                              <span className="px-1.5 py-0.5 bg-surface-container-high rounded text-[9px] font-bold text-primary uppercase tracking-tighter">
-                                {getDayLabel(daysSinceOp(patient))}
-                              </span>
-                            </div>
-                          </div>
-                        </div>
-                      </td>
-                      <td className="px-4 py-3">
-                        <input 
-                          type="text" 
-                          value={patient.bedNumber}
-                          onChange={(e) => updatePatient(patient.id, { bedNumber: e.target.value })}
-                          onClick={(e) => e.stopPropagation()}
-                          className="w-16 md:w-20 bg-transparent border border-transparent hover:border-outline-variant/30 focus:border-primary focus:ring-1 focus:ring-primary rounded px-2 py-1 font-bold text-on-surface-variant transition-all"
-                        />
-                      </td>
-                      <td className="px-4 py-3">
-                        <select
-                          value={patient.location}
-                          onChange={(e) => updatePatient(patient.id, { location: e.target.value })}
-                          onClick={(e) => e.stopPropagation()}
-                          className={`text-[10px] font-bold uppercase tracking-tighter py-1 px-3 pr-7 rounded-full appearance-none bg-no-repeat cursor-pointer border-none focus:ring-2 focus:ring-primary/20 ${patient.location === 'Terapia Intensiva' ? 'bg-error-container text-on-error-container' : 'bg-secondary-container text-on-secondary-container'}`}
-                          style={{ backgroundImage: "url(\"data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e\")", backgroundPosition: "right 0.3rem center", backgroundSize: "1.2em 1.2em" }}
-                        >
-                          <option value="Terapia Intensiva">Ter. Intensiva</option>
-                          <option value="Reparto">Reparto</option>
-                        </select>
-                      </td>
-                      <td className="px-4 py-5 text-center" onClick={(e) => e.stopPropagation()}>
-                         {/* Drainage toggle */}
-                         <label className="inline-flex items-center cursor-pointer">
-                           <input type="checkbox" className="sr-only peer" checked={!!patient.hasDrainage} onChange={(e) => updatePatient(patient.id, { hasDrainage: e.target.checked })} />
-                           <div className="relative w-11 h-6 bg-surface-container-high rounded-full peer-checked:bg-secondary after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:w-5 after:h-5 after:bg-white after:rounded-full after:transition-all peer-checked:after:translate-x-5" />
-                         </label>
-                      </td>
-                      <td className="px-4 py-5 text-center" onClick={(e) => e.stopPropagation()}>
-                         {/* CV toggle */}
-                         <label className="inline-flex items-center cursor-pointer">
-                           <input type="checkbox" className="sr-only peer" checked={!!patient.hasCV} onChange={(e) => updatePatient(patient.id, { hasCV: e.target.checked })} />
-                           <div className="relative w-11 h-6 bg-surface-container-high rounded-full peer-checked:bg-secondary after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:w-5 after:h-5 after:bg-white after:rounded-full after:transition-all peer-checked:after:translate-x-5" />
-                         </label>
-                      </td>
-                      <td className="px-4 py-5 text-center" onClick={(e) => e.stopPropagation()}>
-                         {/* Dimissione toggle */}
-                         {daysSinceOp(patient) >= 2 ? (
-                           <label className="inline-flex items-center cursor-pointer">
-                             <input type="checkbox" className="sr-only peer" checked={!!patient.writtenDischarge} onChange={(e) => updatePatient(patient.id, { writtenDischarge: e.target.checked })} />
-                             <div className="relative w-11 h-6 bg-surface-container-high rounded-full peer-checked:bg-[#7C4DFF] after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:w-5 after:h-5 after:bg-white after:rounded-full after:transition-all peer-checked:after:translate-x-5" />
-                           </label>
-                         ) : (
-                           <span className="text-outline-variant text-[10px] font-medium">–</span>
-                         )}
-                      </td>
-                      <td className="px-4 py-5 text-center" onClick={(e) => e.stopPropagation()}>
-                          <button
-                            onClick={() => {
-                              const currentlyUpdated = isToday(patient.diariaUpdatedAt);
-                              updatePatient(patient.id, { diariaUpdated: !currentlyUpdated, diariaUpdatedAt: new Date().toISOString() });
-                            }}
-                            className="hover:opacity-70 transition-opacity active:scale-95"
-                            title={isToday(patient.diariaUpdatedAt) ? 'Segna come non aggiornato' : 'Segna come aggiornato'}
-                          >
-                            {isToday(patient.diariaUpdatedAt) ? (
-                              <span className="material-symbols-outlined text-secondary" style={{ fontVariationSettings: "'FILL' 1" }}>check_circle</span>
-                            ) : (
-                              <span className="material-symbols-outlined text-outline-variant hover:text-secondary transition-colors">radio_button_unchecked</span>
-                            )}
-                          </button>
-                      </td>
-                      <td className="px-4 py-5 text-center" onClick={(e) => e.stopPropagation()}>
-                          <div className="flex items-center justify-center gap-2">
-                            <button
-                              onClick={(e) => handleEditNotes(e, patient)}
-                              className={`relative p-2 rounded-lg transition-all ${patient.notes ? 'text-amber-500 bg-amber-50 border border-amber-100' : 'text-outline-variant hover:bg-surface-container-high'}`}
-                              title={patient.notes || 'Aggiungi nota'}
-                            >
-                              <span className="material-symbols-outlined text-[20px]">sticky_note_2</span>
-                              {patient.notes && (
-                                <span className="absolute top-1 right-1 w-2 h-2 bg-amber-500 rounded-full border border-white"></span>
-                              )}
-                            </button>
-                            {patient.notes && !editingNotesId && (
-                              <div className="hidden lg:block max-w-[120px] overflow-hidden text-ellipsis whitespace-nowrap text-[10px] text-amber-700 font-medium italic bg-amber-50/50 px-2 py-1 rounded">
-                                {patient.notes}
-                              </div>
-                            )}
-                          </div>
-                      </td>
-                      <td className="px-4 py-3 text-center" onClick={(e) => e.stopPropagation()}>
-                         {(() => {
-                           const status = getRxStatus(patient);
-                           if (status === 'hidden') return (
-                             <span className="text-outline-variant text-xs">–</span>
-                           );
-                           if (status === 'done') return (
-                             <button
-                               onClick={() => updatePatient(patient.id, { rxStatus: 'Richiesta' })}
-                               className="flex items-center gap-1 mx-auto text-secondary text-xs font-bold"
-                               title="RX eseguita – clicca per tornare a Richiesta"
-                             >
-                               <span className="material-symbols-outlined text-base" style={{ fontVariationSettings: "'FILL' 1" }}>radiology</span>
-                               <span>Eseguita</span>
-                             </button>
-                           );
-                           if (status === 'requested') return (
-                             <button
-                               onClick={() => updatePatient(patient.id, { rxStatus: 'Eseguita' })}
-                               className="flex items-center gap-1 mx-auto text-warning text-xs font-bold"
-                               title="RX richiesta – clicca per segnare come eseguita"
-                             >
-                               <span className="material-symbols-outlined text-base">radiology</span>
-                               <span>Richiesta</span>
-                             </button>
-                           );
-                           // needed
-                           return (
-                             <button
-                               onClick={() => updatePatient(patient.id, { rxStatus: 'Richiesta' })}
-                               className="flex items-center gap-1 mx-auto text-error text-xs font-bold animate-pulse"
-                               title="RX da richiedere – clicca per segnare come richiesta"
-                             >
-                               <span className="material-symbols-outlined text-base">radiology</span>
-                               <span>Da fare</span>
-                             </button>
-                           );
-                         })()}
-                      </td>
-                      <td className="px-6 py-5 text-right">
-                        <button className="text-primary font-bold text-xs hover:underline" onClick={(e) => { e.stopPropagation(); navigate(`/patient/${patient.id}`); }}>Vedi Cartella</button>
-                      </td>
-                    </tr>
-                    {editingNotesId === patient.id && (
-                      <tr className="bg-amber-50/30" onClick={(e) => e.stopPropagation()}>
-                        <td colSpan="10" className="px-8 py-4 border-l-4 border-amber-400">
-                          <div className="flex flex-col gap-3 max-w-2xl">
-                              <div className="flex items-center gap-2 text-amber-800">
-                                <span className="material-symbols-outlined text-sm">edit_note</span>
-                                <span className="text-xs font-bold uppercase tracking-wider">Note Cliniche Rapide</span>
-                              </div>
-                              <textarea 
-                                autoFocus
-                                value={tempNotes}
-                                onChange={(e) => setTempNotes(e.target.value)}
-                                className="w-full bg-white border border-amber-200 rounded-xl p-3 text-sm text-gray-800 focus:ring-2 focus:ring-amber-500 outline-none min-h-[80px] shadow-sm"
-                                placeholder="Scrivi qui le note per il passaggio consegne o osservazioni rapide..."
-                              />
-                              <div className="flex justify-end gap-3">
-                                <button onClick={() => setEditingNotesId(null)} className="px-4 py-1.5 text-xs font-bold text-amber-700 hover:bg-amber-100 rounded-lg transition-colors">Annulla</button>
-                                <button onClick={(e) => handleSaveNotes(e, patient.id)} className="px-6 py-1.5 bg-amber-600 text-white rounded-lg text-xs font-black shadow-sm active:scale-95 transition-all">SALVA NOTA</button>
-                              </div>
-                          </div>
-                        </td>
-                      </tr>
-                    )}
-                  </React.Fragment>
-                ))}
-              </tbody>
-            </table>
-            {sortedPatients.length === 0 && (
-              <div className="text-center py-12 text-on-surface-variant">Nessun paziente trovato.</div>
+        {isSyncing && !patients.length ? (
+          <div className="loading-state" role="status">
+            Caricamento dei pazienti…
+          </div>
+        ) : !filtered.length ? (
+          <div className="empty-state">
+            <h3>
+              {error
+                ? "Pazienti non disponibili"
+                : active.length
+                  ? "Nessun risultato"
+                  : "Il reparto è pronto"}
+            </h3>
+            <p>
+              {error
+                ? "Riprova il collegamento per caricare i dati."
+                : active.length
+                  ? "Prova con un altro nome o modifica i filtri."
+                  : "Aggiungi il primo paziente per iniziare il giro visita."}
+            </p>
+            {!active.length && !error && (
+              <Link to="/add" className="button secondary">
+                Aggiungi un paziente
+              </Link>
             )}
           </div>
-        </div>
-
-        {/* Footer Summary Info (Desktop) */}
-        <div className="hidden md:grid mt-8 grid-cols-1 md:grid-cols-3 gap-6 pb-8">
-          <div className="bg-primary/5 p-6 rounded-2xl border border-primary/10">
-            <div className="flex items-center gap-4">
-              <div className="w-12 h-12 bg-primary rounded-xl flex items-center justify-center text-white">
-                <span className="material-symbols-outlined">person</span>
-              </div>
-              <div>
-                <div className="text-2xl font-black text-primary">{activePatients.length}</div>
-                <div className="text-xs font-bold text-primary/70 uppercase tracking-widest">Totale Pazienti</div>
-              </div>
+        ) : (
+          <>
+            <div className="patient-table-wrap">
+              <table className="patient-table">
+                <thead>
+                  <tr>
+                    <th>Paziente</th>
+                    <th className="numeric">Letto</th>
+                    <th className="numeric">Postoperatorio</th>
+                    <th>Presidi</th>
+                    <th>Diaria di oggi</th>
+                    <th>RX</th>
+                    <th>
+                      <span className="sr-only">Cartella</span>
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filtered.map((p) => (
+                    <tr key={p.id}>
+                      <td>
+                        <Link className="patient-name" to={`/patient/${p.id}`}>
+                          {patientName(p)}
+                        </Link>
+                        <span className="cell-subline">{p.diagnosis}</span>
+                      </td>
+                      <td className="numeric bed-number">
+                        {p.bedNumber || "—"}
+                      </td>
+                      <td className="numeric">
+                        <span className="postop-day">
+                          {postOpDays(p.operationDate) === 0
+                            ? "Oggi"
+                            : `Giornata ${postOpDays(p.operationDate)}`}
+                        </span>
+                        <span className="cell-subline">
+                          {dateLabel(p.operationDate)}
+                        </span>
+                      </td>
+                      <td>
+                        <span>
+                          {[
+                            p.hasDrainage ? "Drenaggio" : null,
+                            p.hasCV ? "CV" : null,
+                          ]
+                            .filter(Boolean)
+                            .join(" · ") || "Nessuno"}
+                        </span>
+                        {postOpDays(p.operationDate) >= 2 &&
+                          (p.hasCV || p.hasDrainage) && (
+                            <span className="cell-subline attention-text">
+                              Da rivalutare
+                            </span>
+                          )}
+                      </td>
+                      <td>
+                        <button
+                          className={`diary-button ${diaryDone(p) ? "complete" : ""}`}
+                          disabled={pending.includes(p.id)}
+                          onClick={() =>
+                            updatePatient(p.id, {
+                              diariaUpdated: !diaryDone(p),
+                            })
+                          }
+                          aria-label={`${diaryDone(p) ? "Segna da aggiornare" : "Segna diaria aggiornata"}: ${patientName(p)}`}
+                        >
+                          {diaryDone(p) ? (
+                            <Check size={16} />
+                          ) : (
+                            <Circle size={15} />
+                          )}
+                          {diaryDone(p) ? "Aggiornata" : "Da aggiornare"}
+                        </button>
+                      </td>
+                      <td>
+                        <span
+                          className={`status-tag ${p.rxStatus === "Richiesta" ? "waiting" : ""}`}
+                        >
+                          {p.rxStatus === "Non Richiesta"
+                            ? "Non richiesta"
+                            : p.rxStatus || "—"}
+                        </span>
+                      </td>
+                      <td>
+                        <Link
+                          to={`/patient/${p.id}`}
+                          className="icon-button"
+                          aria-label={`Apri cartella di ${patientName(p)}`}
+                        >
+                          <ArrowUpRight size={18} />
+                        </Link>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
-          </div>
-          <div className="bg-secondary/5 p-6 rounded-2xl border border-secondary/10">
-            <div className="flex items-center gap-4">
-              <div className="w-12 h-12 bg-secondary rounded-xl flex items-center justify-center text-white">
-                <span className="material-symbols-outlined">monitor_heart</span>
-              </div>
-              <div>
-                <div className="text-2xl font-black text-secondary">{icuCount}</div>
-                <div className="text-xs font-bold text-secondary/70 uppercase tracking-widest">Terapia Intensiva</div>
-              </div>
+            <div className="patient-mobile-list">
+              {filtered.map((p) => (
+                <article className="patient-mobile" key={p.id}>
+                  <div className="patient-mobile-heading">
+                    <Link className="patient-name" to={`/patient/${p.id}`}>
+                      {patientName(p)}
+                    </Link>
+                    <span className="bed-label">
+                      Letto {p.bedNumber || "—"}
+                    </span>
+                  </div>
+                  <p>{p.diagnosis}</p>
+                  <div className="patient-mobile-facts">
+                    <span className="postop-day">
+                      {postOpDays(p.operationDate) === 0
+                        ? "Intervento oggi"
+                        : `Giornata ${postOpDays(p.operationDate)}`}
+                    </span>
+                    <span>
+                      {p.location === "Terapia Intensiva"
+                        ? "Intensiva"
+                        : "Reparto"}
+                    </span>
+                    <span>
+                      RX:{" "}
+                      {p.rxStatus === "Non Richiesta"
+                        ? "non richiesta"
+                        : p.rxStatus?.toLowerCase()}
+                    </span>
+                  </div>
+                  <div className="patient-mobile-footer">
+                    <button
+                      className={`diary-button ${diaryDone(p) ? "complete" : ""}`}
+                      disabled={pending.includes(p.id)}
+                      onClick={() =>
+                        updatePatient(p.id, { diariaUpdated: !diaryDone(p) })
+                      }
+                    >
+                      {diaryDone(p) ? (
+                        <Check size={16} />
+                      ) : (
+                        <Circle size={15} />
+                      )}
+                      Diaria {diaryDone(p) ? "aggiornata" : "da aggiornare"}
+                    </button>
+                    <Link className="text-link" to={`/patient/${p.id}`}>
+                      Cartella <ArrowUpRight size={15} />
+                    </Link>
+                  </div>
+                  <div className="mobile-devices">
+                    Presidi:{" "}
+                    {[p.hasDrainage ? "drenaggio" : null, p.hasCV ? "CV" : null]
+                      .filter(Boolean)
+                      .join(" · ") || "nessuno"}
+                    {postOpDays(p.operationDate) >= 2 &&
+                    (p.hasCV || p.hasDrainage)
+                      ? " · Da rivalutare"
+                      : ""}
+                  </div>
+                </article>
+              ))}
             </div>
-          </div>
-          <div className="bg-error/5 p-6 rounded-2xl border border-error/10">
-            <div className="flex items-center gap-4">
-              <div className="w-12 h-12 bg-error rounded-xl flex items-center justify-center text-white">
-                <span className="material-symbols-outlined">notification_important</span>
-              </div>
-              <div>
-                <div className="text-2xl font-black text-error">{alertCount}</div>
-                <div className="text-xs font-bold text-error/70 uppercase tracking-widest">Presidi Attivi</div>
-              </div>
-            </div>
-          </div>
-        </div>
-
+          </>
+        )}
+      </section>
+      <div className="ward-footnote">
+        <span>
+          Le verifiche dei presidi seguono il giorno postoperatorio, non l’ora
+          dell’intervento.
+        </span>
+        <span>La valutazione resta al team clinico.</span>
       </div>
-    </div>
+    </>
   );
-};
-
-export default WardDashboard;
+}

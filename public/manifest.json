@@ -1,6 +1,6 @@
 {
-  "short_name": "scolioward",
-  "name": "scolioward - Clinical Manager",
+  "short_name": "Scolioward",
+  "name": "Scolioward \u00b7 Chirurgia vertebrale",
   "icons": [
     {
       "src": "favicon.png",
@@ -18,8 +18,10 @@
       "sizes": "512x512"
     }
   ],
-  "start_url": ".",
+  "start_url": "/",
   "display": "standalone",
-  "theme_color": "#005dac",
-  "background_color": "#ffffff"
+  "theme_color": "#f2f4f7",
+  "background_color": "#f2f4f7",
+  "scope": "/",
+  "lang": "it"
 }

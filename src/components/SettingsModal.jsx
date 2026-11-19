@@ -1,54 +1,83 @@
-import React from 'react';
-
-const SettingsModal = ({ onClose }) => {
+import Modal from "./Modal";
+import { usePatientStore } from "../store/usePatientStore";
+export default function SettingsModal({ onClose, onSignOut }) {
+  const { demo, lastSynced, error, refresh } = usePatientStore();
+  const downloadOldCache = () => {
+    const old = localStorage.getItem("spine-ward-patients");
+    if (!old) {
+      window.alert(
+        "Su questo browser non è presente la vecchia copia locale. Prova sul dispositivo usato in precedenza.",
+      );
+      return;
+    }
+    const url = URL.createObjectURL(
+      new Blob([old], { type: "application/json" }),
+    );
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "scolioward-recupero-locale.json";
+    a.click();
+    URL.revokeObjectURL(url);
+  };
   return (
-    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
-      <div className="bg-surface-container-lowest w-full max-w-lg rounded-2xl shadow-2xl p-6 md:p-8 relative">
-        <div className="flex justify-between items-center mb-6">
-          <h2 className="text-xl md:text-2xl font-bold font-headline text-primary flex items-center gap-2">
-            <span className="material-symbols-outlined">database</span> Stato Database
-          </h2>
-          <button onClick={onClose} className="p-2 text-on-surface-variant hover:bg-surface-container-high rounded-full transition-colors">
-             <span className="material-symbols-outlined">close</span>
-          </button>
-        </div>
-
-        <div className="flex flex-col gap-5">
-          <div className="p-5 bg-primary/5 text-on-surface border border-primary/10 rounded-2xl text-sm leading-relaxed">
-            <div className="flex items-center gap-3 mb-3">
-              <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary">
-                <span className="material-symbols-outlined">bolt</span>
-              </div>
-              <div>
-                <p className="font-bold text-base">Sincronizzazione Real-time</p>
-                <p className="text-xs text-on-surface-variant">Attivo tramite Supabase</p>
-              </div>
-            </div>
-            <p className="text-on-surface-variant">
-              L'app è ora collegata a un database professionale ad alte prestazioni (PostgreSQL). Tutte le tue modifiche sono sincronizzate istantaneamente tra tutti i tuoi dispositivi senza ritardi.
-            </p>
+    <Modal title="Impostazioni" onClose={onClose}>
+      <section className="settings-section">
+        <h3>Collegamento e sincronizzazione</h3>
+        <p>
+          {demo
+            ? "La demo funziona in memoria e non accede al database."
+            : error
+              ? "Connessione non disponibile. Nessun salvataggio viene confermato senza risposta del server."
+              : lastSynced
+                ? "Collegamento a Neon riuscito."
+                : "Il collegamento al database non è ancora stato verificato."}
+        </p>
+        <dl className="key-values">
+          <div>
+            <dt>Ultima lettura riuscita</dt>
+            <dd>{lastSynced?.toLocaleString("it-IT") || "—"}</dd>
           </div>
-
-          <div className="bg-surface-container-low p-4 rounded-xl">
-             <h4 className="text-[10px] font-bold text-on-surface-variant uppercase tracking-widest mb-2 px-1">Sicurezza</h4>
-             <p className="text-xs text-on-surface-variant leading-relaxed mb-4">
-               La connessione è protetta tramite chiavi API crittografate. Per motivi di sicurezza, la configurazione del database è gestita a livello di sistema.
-             </p>
-             <div className="flex items-center gap-2 text-xs font-bold text-secondary">
-               <span className="material-symbols-outlined text-sm">check_circle</span>
-               <span>Connessione Protetta</span>
-             </div>
+          <div>
+            <dt>Aggiornamento</dt>
+            <dd>{demo ? "Demo locale" : "Ogni 45 s, a pagina visibile"}</dd>
           </div>
-
-          <div className="flex justify-end gap-3 mt-4 pt-4 border-t border-outline-variant/10">
-            <button type="button" onClick={onClose} className="px-8 py-2.5 rounded-xl bg-primary text-white font-bold shadow-sm hover:opacity-90 transition-opacity">
-              Chiudi
-            </button>
+          <div>
+            <dt>Dati nel browser</dt>
+            <dd>Solo durante la sessione</dd>
           </div>
-        </div>
-      </div>
-    </div>
+        </dl>
+        <button className="button secondary" onClick={refresh} disabled={demo}>
+          Verifica collegamento
+        </button>
+      </section>
+      <section className="settings-section">
+        <h3>Recupera la versione precedente</h3>
+        <p>
+          Il vecchio Scolioward poteva conservare una copia dei pazienti sul
+          dispositivo. Puoi scaricarla da questo browser per il recupero, senza
+          cancellarla.
+        </p>
+        <button className="button secondary" onClick={downloadOldCache}>
+          Scarica la vecchia copia locale
+        </button>
+      </section>
+      <section className="settings-section">
+        <h3>Accesso web</h3>
+        <a
+          href="https://scolioward.vercel.app"
+          target="_blank"
+          rel="noreferrer"
+        >
+          scolioward.vercel.app
+        </a>
+        <p>
+          Su iPhone: Condividi → Aggiungi alla schermata Home. Su Android: menu
+          del browser → Aggiungi a schermata Home.
+        </p>
+      </section>
+      <button className="button secondary" onClick={onSignOut}>
+        {demo ? "Esci dalla demo" : "Esci dal tuo account"}
+      </button>
+    </Modal>
   );
-};
-
-export default SettingsModal;
+}
