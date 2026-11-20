@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import {
   Plus,
@@ -7,6 +7,7 @@ import {
   Check,
   Circle,
   SlidersHorizontal,
+  Archive,
 } from "lucide-react";
 import { usePatientStore } from "../store/usePatientStore";
 import {
@@ -17,6 +18,7 @@ import {
   diaryDone,
   tasksFor,
   dateLabel,
+  localDate,
 } from "../lib/ward";
 import SyncMessage from "../components/SyncMessage";
 export default function WardDashboard() {
@@ -32,6 +34,24 @@ export default function WardDashboard() {
   const [query, setQuery] = useState("");
   const [location, setLocation] = useState("Tutti");
   const [attention, setAttention] = useState(false);
+  const [swipedPatient, setSwipedPatient] = useState(null);
+  const swipeStart = useRef(null);
+  const swipeMoved = useRef(false);
+  const discharge = async (patient) => {
+    if (
+      !window.confirm(
+        `Dimettere ${patientName(patient)} e spostare la scheda in archivio?`,
+      )
+    )
+      return;
+    if (
+      await updatePatient(patient.id, {
+        status: "Discharged",
+        dischargeDate: localDate(),
+      })
+    )
+      setSwipedPatient(null);
+  };
   const unavailable = !demo && !lastSynced;
   const active = patients.filter(activePatient);
   const scoped = active.filter(
@@ -260,64 +280,126 @@ export default function WardDashboard() {
             </div>
             <div className="patient-mobile-list">
               {filtered.map((p) => (
-                <article className="patient-mobile" key={p.id}>
-                  <div className="patient-mobile-heading">
-                    <Link className="patient-name" to={`/patient/${p.id}`}>
-                      {patientName(p)}
-                    </Link>
-                    <span className="bed-label">
-                      Letto {p.bedNumber || "—"}
-                    </span>
-                  </div>
-                  <p>{p.diagnosis}</p>
-                  <div className="patient-mobile-facts">
-                    <span className="postop-day">
-                      {postOpDays(p.operationDate) === 0
-                        ? "Intervento oggi"
-                        : `Giornata ${postOpDays(p.operationDate)}`}
-                    </span>
-                    <span>
-                      {p.location === "Terapia Intensiva"
-                        ? "Intensiva"
-                        : "Reparto"}
-                    </span>
-                    <span>
-                      RX:{" "}
-                      {p.rxStatus === "Non Richiesta"
-                        ? "non richiesta"
-                        : p.rxStatus?.toLowerCase()}
-                    </span>
-                  </div>
-                  <div className="patient-mobile-footer">
-                    <button
-                      className={`diary-button ${diaryDone(p) ? "complete" : ""}`}
-                      disabled={pending.includes(p.id)}
-                      onClick={() =>
-                        updatePatient(p.id, { diariaUpdated: !diaryDone(p) })
+                <div className="patient-swipe-shell" key={p.id}>
+                  <button
+                    className="swipe-discharge"
+                    disabled={pending.includes(p.id)}
+                    tabIndex={swipedPatient === p.id ? 0 : -1}
+                    aria-hidden={swipedPatient !== p.id}
+                    onClick={() => discharge(p)}
+                    aria-label={`Dimetti ${patientName(p)}`}
+                  >
+                    <Archive size={20} />
+                    Dimetti
+                  </button>
+                  <article
+                    className={`patient-mobile ${swipedPatient === p.id ? "swiped" : ""}`}
+                    onClickCapture={(e) => {
+                      if (swipeMoved.current) {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        swipeMoved.current = false;
                       }
-                    >
-                      {diaryDone(p) ? (
-                        <Check size={16} />
-                      ) : (
-                        <Circle size={15} />
-                      )}
-                      Diaria {diaryDone(p) ? "aggiornata" : "da aggiornare"}
-                    </button>
-                    <Link className="text-link" to={`/patient/${p.id}`}>
-                      Cartella <ArrowUpRight size={15} />
-                    </Link>
-                  </div>
-                  <div className="mobile-devices">
-                    Presidi:{" "}
-                    {[p.hasDrainage ? "drenaggio" : null, p.hasCV ? "CV" : null]
-                      .filter(Boolean)
-                      .join(" · ") || "nessuno"}
-                    {postOpDays(p.operationDate) >= 2 &&
-                    (p.hasCV || p.hasDrainage)
-                      ? " · Da rivalutare"
-                      : ""}
-                  </div>
-                </article>
+                    }}
+                    onPointerDown={(e) => {
+                      swipeMoved.current = false;
+                      swipeStart.current = {
+                        x: e.clientX,
+                        y: e.clientY,
+                      };
+                    }}
+                    onPointerMove={(e) => {
+                      const start = swipeStart.current;
+                      if (!start) return;
+                      const dx = e.clientX - start.x,
+                        dy = e.clientY - start.y;
+                      if (
+                        Math.abs(dx) > Math.abs(dy) * 1.4 &&
+                        Math.abs(dx) > 36
+                      ) {
+                        setSwipedPatient(dx < 0 ? p.id : null);
+                        swipeMoved.current = true;
+                        swipeStart.current = null;
+                      }
+                    }}
+                    onPointerUp={() => {
+                      swipeStart.current = null;
+                    }}
+                    onPointerCancel={() => {
+                      swipeStart.current = null;
+                    }}
+                  >
+                    <div className="patient-mobile-heading">
+                      <Link className="patient-name" to={`/patient/${p.id}`}>
+                        {patientName(p)}
+                      </Link>
+                      <span className="bed-label">
+                        Letto {p.bedNumber || "—"}
+                      </span>
+                    </div>
+                    <p>{p.diagnosis}</p>
+                    <div className="patient-mobile-facts">
+                      <span className="postop-day">
+                        {postOpDays(p.operationDate) === 0
+                          ? "Intervento oggi"
+                          : `Giornata ${postOpDays(p.operationDate)}`}
+                      </span>
+                      <span>
+                        {p.location === "Terapia Intensiva"
+                          ? "Intensiva"
+                          : "Reparto"}
+                      </span>
+                      <span>
+                        RX:{" "}
+                        {p.rxStatus === "Non Richiesta"
+                          ? "non richiesta"
+                          : p.rxStatus?.toLowerCase()}
+                      </span>
+                    </div>
+                    <div className="patient-mobile-footer">
+                      <button
+                        className={`diary-button ${diaryDone(p) ? "complete" : ""}`}
+                        disabled={pending.includes(p.id)}
+                        onClick={() =>
+                          updatePatient(p.id, { diariaUpdated: !diaryDone(p) })
+                        }
+                      >
+                        {diaryDone(p) ? (
+                          <Check size={16} />
+                        ) : (
+                          <Circle size={15} />
+                        )}
+                        Diaria {diaryDone(p) ? "aggiornata" : "da aggiornare"}
+                      </button>
+                      <Link className="text-link" to={`/patient/${p.id}`}>
+                        Cartella <ArrowUpRight size={15} />
+                      </Link>
+                      <button
+                        className="mobile-discharge-toggle"
+                        onClick={() =>
+                          setSwipedPatient(swipedPatient === p.id ? null : p.id)
+                        }
+                        aria-label={`Mostra azione dimissione per ${patientName(p)}`}
+                        aria-expanded={swipedPatient === p.id}
+                      >
+                        <Archive size={16} />
+                      </button>
+                    </div>
+                    <div className="mobile-devices">
+                      Presidi:{" "}
+                      {[
+                        p.hasDrainage ? "drenaggio" : null,
+                        p.hasCV ? "CV" : null,
+                      ]
+                        .filter(Boolean)
+                        .join(" · ") || "nessuno"}
+                      {postOpDays(p.operationDate) >= 2 &&
+                      (p.hasCV || p.hasDrainage)
+                        ? " · Da rivalutare"
+                        : ""}
+                    </div>
+                  </article>
+                </div>
               ))}
             </div>
           </>

@@ -1474,3 +1474,52 @@ button:active:not(:disabled) {
 .handover-person .cell-subline {
   font-size: 13px;
 }
+.patient-swipe-shell {
+  position: relative;
+  overflow: hidden;
+  background: #993626;
+}
+.patient-swipe-shell .patient-mobile {
+  position: relative;
+  background: #fff;
+  transition: transform 0.2s ease;
+  touch-action: pan-y;
+  user-select: none;
+}
+.patient-swipe-shell .patient-mobile.swiped {
+  transform: translateX(-104px);
+}
+.swipe-discharge {
+  position: absolute;
+  inset: 0 0 0 auto;
+  width: 104px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border: 0;
+  background: #993626;
+  color: #fff;
+  font-size: 13px;
+}
+.mobile-discharge-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 36px;
+  min-height: 36px;
+  border: 0;
+  background: transparent;
+  color: #60656d;
+  border-radius: 6px;
+}
+.mobile-discharge-toggle[aria-expanded="true"] {
+  background: #f0e7e5;
+  color: #7e2d20;
+}
+@media (prefers-reduced-motion: reduce) {
+  .patient-swipe-shell .patient-mobile {
+    transition: none;
+  }
+}
