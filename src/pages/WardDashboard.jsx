@@ -6,8 +6,9 @@ import {
   ArrowUpRight,
   Check,
   Circle,
-  SlidersHorizontal,
   Archive,
+  MoveLeft,
+  ClipboardList,
 } from "lucide-react";
 import { usePatientStore } from "../store/usePatientStore";
 import {
@@ -17,10 +18,51 @@ import {
   postOpDays,
   diaryDone,
   tasksFor,
-  dateLabel,
   localDate,
 } from "../lib/ward";
 import SyncMessage from "../components/SyncMessage";
+import Modal from "../components/Modal";
+function HandoverContent({ patient, busy, onDischarge }) {
+  return (
+    <>
+      <span className="bed-label">
+        Letto {patient.bedNumber || "—"} · Giornata{" "}
+        {postOpDays(patient.operationDate)}
+      </span>
+      <h3 className="handover-selected-name">{patientName(patient)}</h3>
+      <p className="handover-preview-note">
+        {patient.handover || "Nessuna consegna annotata per questo paziente."}
+      </p>
+      <div className="preview-facts">
+        <span>
+          <Check size={15} />
+          Diaria {diaryDone(patient) ? "aggiornata" : "da aggiornare"}
+        </span>
+        <span>RX: {patient.rxStatus?.toLowerCase() || "non richiesta"}</span>
+        <span>
+          Presidi:{" "}
+          {[
+            patient.hasDrainage ? "drenaggio" : null,
+            patient.hasCV ? "CV" : null,
+          ]
+            .filter(Boolean)
+            .join(" · ") || "nessuno"}
+        </span>
+      </div>
+      <Link className="button secondary" to={`/patient/${patient.id}`}>
+        Apri cartella <ArrowUpRight size={16} />
+      </Link>
+      <button
+        className="button primary"
+        disabled={busy}
+        onClick={() => onDischarge(patient)}
+      >
+        <Archive size={16} />
+        Dimetti paziente
+      </button>
+    </>
+  );
+}
 export default function WardDashboard() {
   const {
     patients,
@@ -34,24 +76,12 @@ export default function WardDashboard() {
   const [query, setQuery] = useState("");
   const [location, setLocation] = useState("Tutti");
   const [attention, setAttention] = useState(false);
+  const [selectedId, setSelectedId] = useState(null);
+  const [mobileHandover, setMobileHandover] = useState(false);
   const [swipedPatient, setSwipedPatient] = useState(null);
-  const swipeStart = useRef(null);
-  const swipeMoved = useRef(false);
-  const discharge = async (patient) => {
-    if (
-      !window.confirm(
-        `Dimettere ${patientName(patient)} e spostare la scheda in archivio?`,
-      )
-    )
-      return;
-    if (
-      await updatePatient(patient.id, {
-        status: "Discharged",
-        dischargeDate: localDate(),
-      })
-    )
-      setSwipedPatient(null);
-  };
+  const [dischargePatient, setDischargePatient] = useState(null);
+  const swipeStart = useRef(null),
+    swipeMoved = useRef(false);
   const unavailable = !demo && !lastSynced;
   const active = patients.filter(activePatient);
   const scoped = active.filter(
@@ -68,232 +98,172 @@ export default function WardDashboard() {
         numeric: true,
       }),
     );
+  const selected = filtered.find((p) => p.id === selectedId) || filtered[0];
+  const mobileSelected = active.find((p) => p.id === selectedId);
   const diaries = scoped.filter((p) => !diaryDone(p)).length;
   const devices = scoped.filter(
     (p) => postOpDays(p.operationDate) >= 2 && (p.hasDrainage || p.hasCV),
   ).length;
+  const choosePatient = (p) => {
+    setSelectedId(p.id);
+    setMobileHandover(window.matchMedia("(max-width: 1000px)").matches);
+  };
+  const requestDischarge = (p) => {
+    setMobileHandover(false);
+    setDischargePatient(p);
+  };
+  const discharge = async () => {
+    if (!dischargePatient || pending.includes(dischargePatient.id)) return;
+    if (
+      await updatePatient(dischargePatient.id, {
+        status: "Discharged",
+        dischargeDate: localDate(),
+      })
+    ) {
+      setDischargePatient(null);
+      setSwipedPatient(null);
+    }
+  };
   return (
     <>
-      <div className="page-heading">
-        <div>
-          <h1>Pazienti in reparto</h1>
-          <p>Il punto sul postoperatorio, un paziente alla volta.</p>
-        </div>
-        <Link to="/add" className="button primary">
-          <Plus size={17} />
-          Nuovo paziente
-        </Link>
-      </div>
       <SyncMessage />
-      <div className="metrics-strip" aria-label="Riepilogo della selezione">
-        <div>
-          <span>Pazienti nella selezione</span>
-          <strong>{unavailable ? "—" : scoped.length}</strong>
-        </div>
-        <div>
-          <span>In terapia intensiva</span>
-          <strong>
-            {unavailable
-              ? "—"
-              : scoped.filter((p) => p.location === "Terapia Intensiva").length}
-          </strong>
-        </div>
-        <div>
-          <span>Diarie da aggiornare</span>
-          <strong>{unavailable ? "—" : diaries}</strong>
-        </div>
-        <div>
-          <span>Presidi da rivalutare</span>
-          <strong>{unavailable ? "—" : devices}</strong>
-        </div>
-      </div>
-      <section className="ward-panel" aria-labelledby="ward-list">
-        <div className="list-heading">
-          <h2 id="ward-list">
-            Giro visita{" "}
-            <span>
-              {unavailable
-                ? "In attesa dei dati"
-                : patientCount(filtered.length)}
-            </span>
-          </h2>
-          <Link to="/handover" className="text-link">
-            Apri le consegne <ArrowUpRight size={15} />
+      <section className="ward-lead" aria-label="Riepilogo del reparto">
+        <div className="lead-heading">
+          <div>
+            <p className="lead-date">
+              Spine team ·{" "}
+              {new Intl.DateTimeFormat("it-IT", {
+                timeZone: "Europe/Rome",
+                weekday: "long",
+                day: "numeric",
+                month: "long",
+              }).format(new Date())}
+            </p>
+            <h1>Il giro visita, a colpo d’occhio.</h1>
+          </div>
+          <Link to="/add" className="button lead-add">
+            <Plus size={18} />
+            Nuovo paziente
           </Link>
         </div>
-        <div className="list-toolbar">
-          <label className="search-field">
-            <Search size={17} />
-            <span className="sr-only">Cerca paziente, letto o diagnosi</span>
-            <input
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder="Cerca paziente, letto o diagnosi"
-              type="search"
-            />
-          </label>
-          <div className="filter-group">
-            <label className="select-field">
-              <SlidersHorizontal size={16} />
-              <span className="sr-only">Ubicazione</span>
-              <select
-                value={location}
-                onChange={(e) => setLocation(e.target.value)}
-              >
-                <option>Tutti</option>
-                <option>Reparto</option>
-                <option>Terapia Intensiva</option>
-              </select>
-            </label>
-            <label className="filter-check">
-              <input
-                type="checkbox"
-                checked={attention}
-                onChange={(e) => setAttention(e.target.checked)}
-              />
-              Da rivedere
-            </label>
+        <div className="ward-counts" aria-label="Riepilogo della selezione">
+          <div>
+            <strong>{unavailable ? "—" : scoped.length}</strong>
+            <span>pazienti</span>
+          </div>
+          <div>
+            <strong>
+              {unavailable
+                ? "—"
+                : scoped.filter((p) => p.location === "Terapia Intensiva")
+                    .length}
+            </strong>
+            <span>in intensiva</span>
+          </div>
+          <div>
+            <strong>{unavailable ? "—" : diaries}</strong>
+            <span>diarie da fare</span>
           </div>
         </div>
-        {isSyncing && !patients.length ? (
-          <div className="loading-state" role="status">
-            Caricamento dei pazienti…
+      </section>
+      <div className="dashboard-columns">
+        <section className="dashboard-list" aria-labelledby="ward-list">
+          <div className="dashboard-list-heading">
+            <h2 id="ward-list">
+              Pazienti del reparto{" "}
+              <span>
+                {unavailable
+                  ? "In attesa dei dati"
+                  : patientCount(filtered.length)}
+              </span>
+            </h2>
+            <Link
+              to="/add"
+              className="button primary mobile-add"
+              aria-label="Nuovo paziente"
+            >
+              <Plus size={20} />
+            </Link>
           </div>
-        ) : !filtered.length ? (
-          <div className="empty-state">
-            <h3>
-              {error
-                ? "Pazienti non disponibili"
-                : active.length
-                  ? "Nessun risultato"
-                  : "Il reparto è pronto"}
-            </h3>
-            <p>
-              {error
-                ? "Riprova il collegamento per caricare i dati."
-                : active.length
-                  ? "Prova con un altro nome o modifica i filtri."
-                  : "Aggiungi il primo paziente per iniziare il giro visita."}
-            </p>
-            {!active.length && !error && (
-              <Link to="/add" className="button secondary">
-                Aggiungi un paziente
-              </Link>
-            )}
-          </div>
-        ) : (
-          <>
-            <div className="patient-table-wrap">
-              <table className="patient-table">
-                <thead>
-                  <tr>
-                    <th>Paziente</th>
-                    <th className="numeric">Letto</th>
-                    <th className="numeric">Postoperatorio</th>
-                    <th>Presidi</th>
-                    <th>Diaria di oggi</th>
-                    <th>RX</th>
-                    <th>
-                      <span className="sr-only">Cartella</span>
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filtered.map((p) => (
-                    <tr key={p.id}>
-                      <td>
-                        <Link className="patient-name" to={`/patient/${p.id}`}>
-                          {patientName(p)}
-                        </Link>
-                        <span className="cell-subline">{p.diagnosis}</span>
-                      </td>
-                      <td className="numeric bed-number">
-                        {p.bedNumber || "—"}
-                      </td>
-                      <td className="numeric">
-                        <span className="postop-day">
-                          {postOpDays(p.operationDate) === 0
-                            ? "Oggi"
-                            : `Giornata ${postOpDays(p.operationDate)}`}
-                        </span>
-                        <span className="cell-subline">
-                          {dateLabel(p.operationDate)}
-                        </span>
-                      </td>
-                      <td>
-                        <span>
-                          {[
-                            p.hasDrainage ? "Drenaggio" : null,
-                            p.hasCV ? "CV" : null,
-                          ]
-                            .filter(Boolean)
-                            .join(" · ") || "Nessuno"}
-                        </span>
-                        {postOpDays(p.operationDate) >= 2 &&
-                          (p.hasCV || p.hasDrainage) && (
-                            <span className="cell-subline attention-text">
-                              Da rivalutare
-                            </span>
-                          )}
-                      </td>
-                      <td>
-                        <button
-                          className={`diary-button ${diaryDone(p) ? "complete" : ""}`}
-                          disabled={pending.includes(p.id)}
-                          onClick={() =>
-                            updatePatient(p.id, {
-                              diariaUpdated: !diaryDone(p),
-                            })
-                          }
-                          aria-label={`${diaryDone(p) ? "Segna da aggiornare" : "Segna diaria aggiornata"}: ${patientName(p)}`}
-                        >
-                          {diaryDone(p) ? (
-                            <Check size={16} />
-                          ) : (
-                            <Circle size={15} />
-                          )}
-                          {diaryDone(p) ? "Aggiornata" : "Da aggiornare"}
-                        </button>
-                      </td>
-                      <td>
-                        <span
-                          className={`status-tag ${p.rxStatus === "Richiesta" ? "waiting" : ""}`}
-                        >
-                          {p.rxStatus === "Non Richiesta"
-                            ? "Non richiesta"
-                            : p.rxStatus || "—"}
-                        </span>
-                      </td>
-                      <td>
-                        <Link
-                          to={`/patient/${p.id}`}
-                          className="icon-button"
-                          aria-label={`Apri cartella di ${patientName(p)}`}
-                        >
-                          <ArrowUpRight size={18} />
-                        </Link>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+          <div className="dashboard-toolbar">
+            <label className="search-field">
+              <Search size={18} />
+              <span className="sr-only">Cerca paziente, letto o diagnosi</span>
+              <input
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder="Cerca paziente, letto o diagnosi"
+                type="search"
+              />
+            </label>
+            <div className="dashboard-filters">
+              <div className="location-tabs" aria-label="Ubicazione">
+                {["Tutti", "Reparto", "Terapia Intensiva"].map((value) => (
+                  <button
+                    key={value}
+                    aria-pressed={location === value}
+                    onClick={() => setLocation(value)}
+                  >
+                    {value === "Terapia Intensiva" ? "Intensiva" : value}
+                  </button>
+                ))}
+              </div>
+              <label className="filter-check">
+                <input
+                  type="checkbox"
+                  checked={attention}
+                  onChange={(e) => setAttention(e.target.checked)}
+                />
+                Da rivedere
+              </label>
             </div>
-            <div className="patient-mobile-list">
+          </div>
+          {isSyncing && !patients.length ? (
+            <div className="loading-state" role="status">
+              Caricamento dei pazienti…
+            </div>
+          ) : !filtered.length ? (
+            <div className="empty-state">
+              <h3>
+                {error
+                  ? "Pazienti non disponibili"
+                  : active.length
+                    ? "Nessun risultato"
+                    : "Il reparto è pronto"}
+              </h3>
+              <p>
+                {error
+                  ? "Riprova il collegamento per caricare i dati."
+                  : active.length
+                    ? "Prova con un altro nome o modifica i filtri."
+                    : "Aggiungi il primo paziente per iniziare il giro visita."}
+              </p>
+              {!active.length && !error && (
+                <Link to="/add" className="button primary">
+                  Aggiungi un paziente
+                </Link>
+              )}
+            </div>
+          ) : (
+            <div className="patient-card-grid">
               {filtered.map((p) => (
-                <div className="patient-swipe-shell" key={p.id}>
+                <div
+                  className={`patient-swipe-shell ${swipedPatient === p.id ? "is-open" : ""} ${selected?.id === p.id ? "is-selected" : ""}`}
+                  key={p.id}
+                >
                   <button
                     className="swipe-discharge"
                     disabled={pending.includes(p.id)}
                     tabIndex={swipedPatient === p.id ? 0 : -1}
                     aria-hidden={swipedPatient !== p.id}
-                    onClick={() => discharge(p)}
+                    onClick={() => requestDischarge(p)}
                     aria-label={`Dimetti ${patientName(p)}`}
                   >
                     <Archive size={20} />
                     Dimetti
                   </button>
                   <article
-                    className={`patient-mobile ${swipedPatient === p.id ? "swiped" : ""}`}
+                    className={`patient-card ${swipedPatient === p.id ? "swiped" : ""}`}
                     onClickCapture={(e) => {
                       if (swipeMoved.current) {
                         e.preventDefault();
@@ -303,10 +273,7 @@ export default function WardDashboard() {
                     }}
                     onPointerDown={(e) => {
                       swipeMoved.current = false;
-                      swipeStart.current = {
-                        x: e.clientX,
-                        y: e.clientY,
-                      };
+                      swipeStart.current = { x: e.clientX, y: e.clientY };
                     }}
                     onPointerMove={(e) => {
                       const start = swipeStart.current;
@@ -329,48 +296,74 @@ export default function WardDashboard() {
                       swipeStart.current = null;
                     }}
                   >
-                    <div className="patient-mobile-heading">
-                      <Link className="patient-name" to={`/patient/${p.id}`}>
-                        {patientName(p)}
-                      </Link>
+                    <div className="patient-card-top">
                       <span className="bed-label">
                         Letto {p.bedNumber || "—"}
                       </span>
-                    </div>
-                    <p>{p.diagnosis}</p>
-                    <div className="patient-mobile-facts">
                       <span className="postop-day">
                         {postOpDays(p.operationDate) === 0
                           ? "Intervento oggi"
                           : `Giornata ${postOpDays(p.operationDate)}`}
                       </span>
-                      <span>
-                        {p.location === "Terapia Intensiva"
-                          ? "Intensiva"
-                          : "Reparto"}
-                      </span>
-                      <span>
-                        RX:{" "}
-                        {p.rxStatus === "Non Richiesta"
-                          ? "non richiesta"
-                          : p.rxStatus?.toLowerCase()}
-                      </span>
                     </div>
-                    <div className="patient-mobile-footer">
+                    <button
+                      className="patient-card-select"
+                      onClick={() => choosePatient(p)}
+                      aria-label={`Apri consegna di ${patientName(p)}`}
+                      aria-pressed={selected?.id === p.id}
+                    >
+                      <span className="patient-name">{patientName(p)}</span>
+                      <span className="patient-diagnosis">{p.diagnosis}</span>
+                    </button>
+                    <div className="patient-card-footer">
                       <button
                         className={`diary-button ${diaryDone(p) ? "complete" : ""}`}
                         disabled={pending.includes(p.id)}
                         onClick={() =>
                           updatePatient(p.id, { diariaUpdated: !diaryDone(p) })
                         }
+                        aria-label={`${diaryDone(p) ? "Segna diaria da aggiornare" : "Segna diaria aggiornata"}: ${patientName(p)}`}
                       >
                         {diaryDone(p) ? (
                           <Check size={16} />
                         ) : (
                           <Circle size={15} />
                         )}
-                        Diaria {diaryDone(p) ? "aggiornata" : "da aggiornare"}
+                        Diaria {diaryDone(p) ? "aggiornata" : "da fare"}
                       </button>
+                      <span
+                        className={`location-tag ${p.location === "Terapia Intensiva" ? "intensive" : ""}`}
+                      >
+                        {p.location === "Terapia Intensiva"
+                          ? "Intensiva"
+                          : "Reparto"}
+                      </span>
+                    </div>
+                    <div className="patient-card-clinical">
+                      <span>
+                        RX: {p.rxStatus?.toLowerCase() || "non richiesta"}
+                      </span>
+                      <span
+                        className={
+                          postOpDays(p.operationDate) >= 2 &&
+                          (p.hasCV || p.hasDrainage)
+                            ? "attention-text"
+                            : ""
+                        }
+                      >
+                        {[
+                          p.hasDrainage ? "Drenaggio" : null,
+                          p.hasCV ? "CV" : null,
+                        ]
+                          .filter(Boolean)
+                          .join(" · ") || "Nessun presidio"}
+                        {postOpDays(p.operationDate) >= 2 &&
+                        (p.hasCV || p.hasDrainage)
+                          ? " · Da rivalutare"
+                          : ""}
+                      </span>
+                    </div>
+                    <div className="patient-card-actions">
                       <Link className="text-link" to={`/patient/${p.id}`}>
                         Cartella <ArrowUpRight size={15} />
                       </Link>
@@ -382,36 +375,110 @@ export default function WardDashboard() {
                         aria-label={`Mostra azione dimissione per ${patientName(p)}`}
                         aria-expanded={swipedPatient === p.id}
                       >
-                        <Archive size={16} />
+                        <Archive size={17} />
+                        <span>Dimetti</span>
                       </button>
-                    </div>
-                    <div className="mobile-devices">
-                      Presidi:{" "}
-                      {[
-                        p.hasDrainage ? "drenaggio" : null,
-                        p.hasCV ? "CV" : null,
-                      ]
-                        .filter(Boolean)
-                        .join(" · ") || "nessuno"}
-                      {postOpDays(p.operationDate) >= 2 &&
-                      (p.hasCV || p.hasDrainage)
-                        ? " · Da rivalutare"
-                        : ""}
                     </div>
                   </article>
                 </div>
               ))}
             </div>
-          </>
-        )}
-      </section>
-      <div className="ward-footnote">
-        <span>
-          Le verifiche dei presidi seguono il giorno postoperatorio, non l’ora
-          dell’intervento.
-        </span>
-        <span>La valutazione resta al team clinico.</span>
+          )}
+          {filtered.length > 0 && (
+            <p className="swipe-hint">
+              <MoveLeft size={15} />
+              Scorri una scheda a sinistra per dimettere
+            </p>
+          )}
+        </section>
+        <aside
+          className="dashboard-rail"
+          aria-label="Consegna del paziente selezionato"
+        >
+          <section className="handover-preview">
+            <div className="section-heading">
+              <h2>Consegna del team</h2>
+              <ClipboardList size={19} />
+            </div>
+            {selected ? (
+              <HandoverContent
+                patient={selected}
+                busy={pending.includes(selected.id)}
+                onDischarge={requestDischarge}
+              />
+            ) : (
+              <p>Seleziona un paziente per leggere la consegna.</p>
+            )}
+          </section>
+          <div className="presidi-summary">
+            <h2>Da riprendere al giro</h2>
+            <p>
+              {unavailable
+                ? "In attesa dei dati"
+                : `${devices} ${devices === 1 ? "paziente con presidi da rivalutare" : "pazienti con presidi da rivalutare"} dal secondo giorno postoperatorio.`}
+            </p>
+            <Link className="text-link" to="/handover">
+              Tutte le consegne <ArrowUpRight size={15} />
+            </Link>
+          </div>
+        </aside>
       </div>
+      <p className="ward-footnote">
+        Le verifiche dei presidi seguono il giorno postoperatorio. La
+        valutazione resta al team clinico.
+      </p>
+      {mobileHandover && mobileSelected && (
+        <div className="mobile-handover-modal">
+          <Modal
+            title="Consegna del team"
+            onClose={() => setMobileHandover(false)}
+          >
+            <HandoverContent
+              patient={mobileSelected}
+              busy={pending.includes(mobileSelected.id)}
+              onDischarge={requestDischarge}
+            />
+          </Modal>
+        </div>
+      )}
+      {dischargePatient && (
+        <Modal
+          title="Conferma dimissione"
+          onClose={() => {
+            if (!pending.includes(dischargePatient.id))
+              setDischargePatient(null);
+          }}
+        >
+          <p className="discharge-confirm-copy">
+            Dimettere <strong>{patientName(dischargePatient)}</strong>? La
+            cartella sarà spostata in archivio, dove potrai consultarla o
+            riammettere il paziente.
+          </p>
+          {error && (
+            <p className="field-error" role="alert">
+              {error}
+            </p>
+          )}
+          <div className="dialog-actions">
+            <button
+              className="button secondary"
+              disabled={pending.includes(dischargePatient.id)}
+              onClick={() => setDischargePatient(null)}
+            >
+              Annulla
+            </button>
+            <button
+              className="button destructive"
+              disabled={pending.includes(dischargePatient.id)}
+              onClick={discharge}
+            >
+              {pending.includes(dischargePatient.id)
+                ? "Salvataggio…"
+                : "Dimetti e archivia"}
+            </button>
+          </div>
+        </Modal>
+      )}
     </>
   );
 }

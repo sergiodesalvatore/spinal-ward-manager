@@ -62,6 +62,16 @@ export default function SettingsModal({ onClose, onSignOut }) {
         </button>
       </section>
       <section className="settings-section">
+        <h3>Protocollo ERAS</h3>
+        <a
+          href="https://1drv.ms/i/c/1463450412a5421e/IQCOVSR2aP7_Q580gCIQAPpsAd2rv9-xl1lC03oZIf_cf78?e=2DreF8"
+          target="_blank"
+          rel="noreferrer"
+        >
+          Apri il protocollo del reparto
+        </a>
+      </section>
+      <section className="settings-section">
         <h3>Accesso web</h3>
         <a
           href="https://scolioward.vercel.app"

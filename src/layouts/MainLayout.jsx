@@ -1,22 +1,18 @@
 import { useState } from "react";
 import { NavLink, Outlet, Link } from "react-router-dom";
 import {
-  LayoutList,
-  Plus,
+  Users,
   Archive,
   ClipboardList,
   Settings,
-  LogOut,
   BookOpen,
   RefreshCw,
 } from "lucide-react";
 import Brand from "../components/Brand";
 import SettingsModal from "../components/SettingsModal";
 import { usePatientStore } from "../store/usePatientStore";
-const protocol =
-  "https://1drv.ms/i/c/1463450412a5421e/IQCOVSR2aP7_Q580gCIQAPpsAd2rv9-xl1lC03oZIf_cf78?e=2DreF8";
 const links = [
-  { to: "/", label: "Pazienti", Icon: LayoutList },
+  { to: "/", label: "Pazienti", Icon: Users },
   { to: "/handover", label: "Consegne", Icon: ClipboardList },
   { to: "/archive", label: "Archivio", Icon: Archive },
 ];
@@ -35,75 +31,53 @@ export default function MainLayout({ user, onSignOut }) {
           : lastSynced
             ? `Aggiornato alle ${lastSynced.toLocaleTimeString("it-IT", { hour: "2-digit", minute: "2-digit" })}`
             : "In attesa di collegamento";
+  const initials = demo
+    ? "D"
+    : (user?.name || user?.email || "S").slice(0, 2).toUpperCase();
   return (
     <div className="app-shell">
-      <aside className="sidebar">
-        <Link to="/" className="brand-link" aria-label="Scolioward, pazienti">
-          <Brand />
-        </Link>
-        <div className="workspace-label">
-          Ortopedia e traumatologia<span>Gestione del postoperatorio</span>
-        </div>
-        <nav aria-label="Navigazione principale">
-          {links.map(({ to, label, Icon }) => (
-            <NavLink end={to === "/"} key={to} to={to}>
-              <Icon size={18} />
-              {label}
-            </NavLink>
-          ))}
-          <Link to="/add">
-            <Plus size={18} />
-            Nuovo paziente
+      <header className="app-topbar">
+        <div className="topbar-inner">
+          <Link to="/" className="brand-link" aria-label="Scolioward, pazienti">
+            <Brand />
           </Link>
-        </nav>
-        <div className="sidebar-bottom">
-          <a href={protocol} target="_blank" rel="noreferrer">
-            <BookOpen size={18} />
-            Protocollo ERAS
-          </a>
-          <button onClick={() => setSettings(true)}>
-            <Settings size={18} />
-            Impostazioni
-          </button>
-          <div className="account-row">
-            <span className="initials">
-              {demo
-                ? "D"
-                : (user?.name || user?.email || "S").slice(0, 2).toUpperCase()}
-            </span>
-            <span>
-              {demo ? "Modalità demo" : user?.name || "Spine team"}
-              <small>{demo ? "Solo dati di esempio" : user?.email}</small>
-            </span>
-            <button
-              className="icon-button"
-              onClick={onSignOut}
-              aria-label={demo ? "Esci dalla demo" : "Esci dal tuo account"}
+          <nav className="desktop-nav" aria-label="Navigazione principale">
+            {links.map(({ to, label }) => (
+              <NavLink end={to === "/"} key={to} to={to}>
+                {label}
+              </NavLink>
+            ))}
+          </nav>
+          <div className="topbar-tools">
+            <a
+              className="protocol-link"
+              href="https://1drv.ms/i/c/1463450412a5421e/IQCOVSR2aP7_Q580gCIQAPpsAd2rv9-xl1lC03oZIf_cf78?e=2DreF8"
+              target="_blank"
+              rel="noreferrer"
             >
-              <LogOut size={17} />
+              <BookOpen size={17} />
+              Protocollo ERAS
+            </a>
+            <button
+              className="account-button"
+              onClick={() => setSettings(true)}
+              aria-label="Impostazioni e account"
+            >
+              <Settings size={18} />
+              <span className="initials" aria-hidden="true">
+                {initials}
+              </span>
             </button>
           </div>
         </div>
-      </aside>
+      </header>
       <div className="app-body">
-        <header className="mobile-header">
-          <Link to="/" className="brand-link">
-            <Brand />
-          </Link>
-          <button
-            className="icon-button"
-            onClick={() => setSettings(true)}
-            aria-label="Impostazioni"
-          >
-            <Settings size={20} />
-          </button>
-        </header>
         <div className="connection-bar">
           <span className="scope-label">
-            Spine team <span>/</span> Giro visita
+            Spine team <span>/</span> Chirurgia vertebrale
           </span>
           <button
-            className="sync-status"
+            className={`sync-status ${error ? "sync-offline" : ""}`}
             onClick={refresh}
             disabled={isSyncing || demo}
             title="Aggiorna i dati"
@@ -137,14 +111,10 @@ export default function MainLayout({ user, onSignOut }) {
       <nav className="bottom-nav" aria-label="Navigazione mobile">
         {links.map(({ to, label, Icon }) => (
           <NavLink end={to === "/"} key={to} to={to}>
-            <Icon size={20} />
+            <Icon size={21} />
             <span>{label}</span>
           </NavLink>
         ))}
-        <NavLink to="/add">
-          <Plus size={20} />
-          <span>Nuovo</span>
-        </NavLink>
       </nav>
       {settings && (
         <SettingsModal
