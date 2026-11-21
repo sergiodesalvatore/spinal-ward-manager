@@ -1867,3 +1867,52 @@ label {
     grid-column: 1 / -1;
   }
 }
+
+.users-modal {
+  max-width: 700px;
+}
+.users-access-note {
+  color: var(--muted);
+  margin: 0 0 20px;
+}
+.users-total {
+  margin-bottom: 12px;
+  font-weight: 600;
+}
+.registered-users {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+.registered-users li {
+  padding: 18px 0;
+  border-top: 1px solid var(--line);
+}
+.registered-user-heading {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.registered-user-heading strong,
+.registered-user-email {
+  overflow-wrap: anywhere;
+}
+.user-role {
+  font-size: 13px;
+  color: var(--accent-hover);
+  background: var(--soft);
+  padding: 3px 8px;
+  border-radius: 4px;
+}
+.registered-user-email {
+  margin: 6px 0;
+}
+.registered-user-meta {
+  display: flex;
+  gap: 8px 20px;
+  flex-wrap: wrap;
+  font-size: 13px;
+  color: var(--muted);
+}

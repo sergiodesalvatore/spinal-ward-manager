@@ -1,6 +1,7 @@
 import { neon } from "@neondatabase/serverless";
 import { createRemoteJWKSet, jwtVerify } from "jose";
 import { HttpError } from "./validation.js";
+import { verifiedMember } from "./membership.js";
 let sqlClient;
 let jwks;
 export function database() {
@@ -28,16 +29,8 @@ export async function authorize(req) {
   }
   if (!payload.sub || !payload.exp)
     throw new HttpError(401, "Sessione non valida.");
-  // Membership is checked against the verified identity in the database, never browser-provided email or metadata.
-  const sql = database();
-  const users =
-    await sql`SELECT m.email, m.role FROM app.members m JOIN neon_auth."user" u ON lower(u.email)=m.email WHERE u.id=${payload.sub} AND u."emailVerified"=true AND m.enabled=true AND coalesce(u.banned,false)=false`;
-  if (!users.length)
-    throw new HttpError(
-      403,
-      "Accesso non ancora abilitato oppure email non verificata. Contatta l’amministratore del reparto.",
-    );
-  return { ...users[0], id: payload.sub };
+  const member = await verifiedMember(database(), payload.sub);
+  return { ...member, id: payload.sub };
 }
 export function finishError(res, error) {
   if (error.status)
@@ -48,11 +41,9 @@ export function finishError(res, error) {
       .json({ error: "Questa cartella esiste già. Aggiorna l’elenco." });
   // Never log clinical data, bearer tokens or connection strings.
   console.error("Ward backend error", { code: error.code || "UNAVAILABLE" });
-  return res
-    .status(503)
-    .json({
-      error: "Salvataggio o lettura non riusciti. Riprova il collegamento.",
-    });
+  return res.status(503).json({
+    error: "Salvataggio o lettura non riusciti. Riprova il collegamento.",
+  });
 }
 export function noCache(res) {
   res.setHeader("Cache-Control", "private, no-store, max-age=0");

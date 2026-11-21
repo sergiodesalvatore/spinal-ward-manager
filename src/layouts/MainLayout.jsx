@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import Brand from "../components/Brand";
 import SettingsModal from "../components/SettingsModal";
+import UsersModal from "../components/UsersModal";
 import ProtocolModal from "../components/ProtocolModal";
 import { usePatientStore } from "../store/usePatientStore";
 const links = [
@@ -20,6 +21,7 @@ const links = [
 export default function MainLayout({ user, onSignOut }) {
   const [settings, setSettings] = useState(false);
   const [protocol, setProtocol] = useState(false);
+  const [usersOpen, setUsersOpen] = useState(false);
   const { demo, isSyncing, lastSynced, error, refresh, pending } =
     usePatientStore();
   const status = demo
@@ -121,12 +123,17 @@ export default function MainLayout({ user, onSignOut }) {
         <SettingsModal
           onClose={() => setSettings(false)}
           onSignOut={onSignOut}
+          onOpenUsers={() => {
+            setSettings(false);
+            setUsersOpen(true);
+          }}
           onOpenProtocol={() => {
             setSettings(false);
             setProtocol(true);
           }}
         />
       )}
+      {usersOpen && <UsersModal onClose={() => setUsersOpen(false)} />}
       {protocol && <ProtocolModal onClose={() => setProtocol(false)} />}
     </div>
   );

@@ -139,7 +139,10 @@ export default function LoginPage({
                     ? "Scegli una nuova password"
                     : "Accedi a Scolioward"}
           </h1>
-          <p>L’accesso alle cartelle è riservato al personale autorizzato.</p>
+          <p>
+            Dopo la verifica dell’email, il tuo account sarà abilitato come
+            collaboratore.
+          </p>
           {!authClient && (
             <div className="setup-notice">
               Collegamento a Neon in preparazione. Puoi già esplorare la nuova

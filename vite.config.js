@@ -8,7 +8,8 @@ function localApi() {
     configureServer(server) {
       server.middlewares.use("/api", async (req, res, next) => {
         const path = new URL(req.url, "http://localhost");
-        if (!["/patients", "/audit"].includes(path.pathname)) return next();
+        if (!["/patients", "/audit", "/users"].includes(path.pathname))
+          return next();
         try {
           const chunks = [];
           let size = 0;
@@ -36,7 +37,9 @@ function localApi() {
           const { default: handler } = await import(
             path.pathname === "/patients"
               ? "./api/patients.js"
-              : "./api/audit.js"
+              : path.pathname === "/users"
+                ? "./api/users.js"
+                : "./api/audit.js"
           );
           await handler(req, res);
         } catch {

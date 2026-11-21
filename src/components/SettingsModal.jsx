@@ -1,7 +1,12 @@
 import Modal from "./Modal";
 import { usePatientStore } from "../store/usePatientStore";
-export default function SettingsModal({ onClose, onSignOut, onOpenProtocol }) {
-  const { demo, lastSynced, error, refresh } = usePatientStore();
+export default function SettingsModal({
+  onClose,
+  onSignOut,
+  onOpenProtocol,
+  onOpenUsers,
+}) {
+  const { demo, lastSynced, error, refresh, role } = usePatientStore();
   const downloadOldCache = () => {
     const old = localStorage.getItem("spine-ward-patients");
     if (!old) {
@@ -21,6 +26,17 @@ export default function SettingsModal({ onClose, onSignOut, onOpenProtocol }) {
   };
   return (
     <Modal title="Impostazioni" onClose={onClose}>
+      {role === "admin" && (
+        <section className="settings-section">
+          <h3>Utenti del reparto</h3>
+          <p>
+            Consulta gli account registrati, il ruolo e lo stato di accesso.
+          </p>
+          <button className="button secondary" onClick={onOpenUsers}>
+            Utenti registrati
+          </button>
+        </section>
+      )}
       <section className="settings-section">
         <h3>Collegamento e sincronizzazione</h3>
         <p>
