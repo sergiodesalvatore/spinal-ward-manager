@@ -1,4 +1,5 @@
 import { localDate } from "./ward";
+import { CONSULTANTS, RESIDENTS } from "../../shared/careTeam.js";
 const daysAgo = (days) => {
   const d = new Date();
   d.setDate(d.getDate() - days);
@@ -86,6 +87,8 @@ export function demoPatients() {
       id: `10000000-0000-4000-8000-${String(i + 1).padStart(12, "0")}`,
       firstName,
       lastName,
+      consultant: CONSULTANTS[i % CONSULTANTS.length],
+      resident: RESIDENTS[i % RESIDENTS.length],
       bedNumber,
       diagnosis: [
         "Artrodesi vertebrale",

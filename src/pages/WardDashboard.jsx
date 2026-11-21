@@ -22,9 +22,11 @@ import {
 } from "../lib/ward";
 import SyncMessage from "../components/SyncMessage";
 import Modal from "../components/Modal";
+import { PatientTeamBadges } from "../components/PatientTeam";
 function HandoverContent({ patient, busy, onDischarge }) {
   return (
     <>
+      <PatientTeamBadges patient={patient} />
       <span className="bed-label">
         Letto {patient.bedNumber || "—"} · Giornata{" "}
         {postOpDays(patient.operationDate)}
@@ -87,7 +89,7 @@ export default function WardDashboard() {
   const scoped = active.filter(
     (p) =>
       (location === "Tutti" || p.location === location) &&
-      `${patientName(p)} ${p.bedNumber} ${p.diagnosis}`
+      `${patientName(p)} ${p.bedNumber} ${p.diagnosis} ${p.consultant || ""} ${p.resident || ""}`
         .toLowerCase()
         .includes(query.toLowerCase()),
   );
@@ -363,6 +365,13 @@ export default function WardDashboard() {
                           : ""}
                       </span>
                     </div>
+                    <PatientTeamBadges
+                      patient={p}
+                      disabled={pending.includes(p.id)}
+                      onChange={(field, value) =>
+                        updatePatient(p.id, { [field]: value })
+                      }
+                    />
                     <div className="patient-card-actions">
                       <Link className="text-link" to={`/patient/${p.id}`}>
                         Cartella <ArrowUpRight size={15} />

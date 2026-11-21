@@ -1,3 +1,4 @@
+import { CONSULTANTS, RESIDENTS } from "../shared/careTeam.js";
 export class HttpError extends Error {
   constructor(status, message) {
     super(message);
@@ -15,6 +16,8 @@ const strings = {
   handover: 5000,
 };
 const enums = {
+  consultant: CONSULTANTS,
+  resident: RESIDENTS,
   location: ["Reparto", "Terapia Intensiva"],
   status: ["Active", "Discharged", "Archived"],
   rxStatus: ["Non Richiesta", "Richiesta", "Eseguita"],
@@ -82,6 +85,11 @@ export function validateMutation(body, method) {
     } else throw new HttpError(400, `Campo non consentito: ${key}.`);
   }
   if (method === "POST") {
+    if (!clean.consultant || !clean.resident)
+      throw new HttpError(
+        400,
+        "Seleziona il referente e lo specializzando del paziente.",
+      );
     for (const key of [
       "firstName",
       "lastName",

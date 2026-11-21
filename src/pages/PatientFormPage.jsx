@@ -4,6 +4,7 @@ import { ArrowLeft, Plus } from "lucide-react";
 import { usePatientStore } from "../store/usePatientStore";
 import { localDate } from "../lib/ward";
 import SyncMessage from "../components/SyncMessage";
+import { PatientTeamFields } from "../components/PatientTeam";
 export default function PatientFormPage() {
   const navigate = useNavigate();
   const { addPatient } = usePatientStore();
@@ -11,6 +12,8 @@ export default function PatientFormPage() {
   const [form, setForm] = useState({
     firstName: "",
     lastName: "",
+    consultant: "",
+    resident: "",
     bedNumber: "",
     diagnosis: "",
     operationDate: localDate(),
@@ -117,6 +120,15 @@ export default function PatientFormPage() {
                 onChange={change}
               />
             </label>
+          </div>
+        </section>
+        <section className="form-section">
+          <div>
+            <h2>Team del paziente</h2>
+            <p>Referente e specializzando presente all’intervento.</p>
+          </div>
+          <div className="field-grid">
+            <PatientTeamFields patient={form} onChange={change} required />
           </div>
         </section>
         <section className="form-section">

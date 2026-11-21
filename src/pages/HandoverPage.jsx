@@ -11,6 +11,7 @@ import {
   diaryDone,
 } from "../lib/ward";
 import SyncMessage from "../components/SyncMessage";
+import { PatientTeamBadges } from "../components/PatientTeam";
 export default function HandoverPage() {
   const { patients, error, isSyncing, demo, lastSynced } = usePatientStore();
   const [onlyNotes, setOnlyNotes] = useState(false);
@@ -84,6 +85,7 @@ export default function HandoverPage() {
                   </span>
                 </div>
                 <div className="handover-content">
+                  <PatientTeamBadges patient={p} />
                   {p.handover && <p className="handover-note">{p.handover}</p>}
                   <div className="task-tags">
                     {!diaryDone(p) && <span>Diaria da aggiornare</span>}

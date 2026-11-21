@@ -10,6 +10,8 @@ const data = {
   diagnosis: "Test",
   operationDate: "2026-11-19",
   location: "Reparto",
+  consultant: "Oggiano",
+  resident: "Girolamo",
 };
 test("Patient creation applies defaults and server-owned timestamps", () => {
   const result = validateMutation(
@@ -85,4 +87,54 @@ test("Direct unauthenticated API requests fail before accessing the database", a
   assert.match(response.headers["Cache-Control"], /no-store/);
   await patientsHandler({ method: "PUT", headers: {} }, response);
   assert.equal(response.statusCode, 405);
+});
+
+test("New patients require a known consultant and scrubbed resident", () => {
+  for (const field of ["consultant", "resident"]) {
+    const missing = { ...data };
+    delete missing[field];
+    assert.throws(() => validateMutation({ id, data: missing }, "POST"), {
+      status: 400,
+    });
+    assert.throws(
+      () =>
+        validateMutation(
+          { id, data: { ...data, [field]: "Non autorizzato" } },
+          "POST",
+        ),
+      { status: 400 },
+    );
+  }
+  const result = validateMutation({ id, data }, "POST");
+  assert.equal(result.data.consultant, "Oggiano");
+  assert.equal(result.data.resident, "Girolamo");
+});
+
+test("Team badges allow validated partial assignments on existing patients", () => {
+  const result = validateMutation(
+    {
+      id,
+      version: 3,
+      data: { consultant: "De Salvatore", resident: "Donato" },
+    },
+    "PATCH",
+  );
+  assert.deepEqual(result.data, {
+    consultant: "De Salvatore",
+    resident: "Donato",
+  });
+  assert.throws(
+    () =>
+      validateMutation(
+        { id, version: 3, data: { resident: "Oggiano" } },
+        "PATCH",
+      ),
+    { status: 400 },
+  );
+  // Existing records without assignments can still receive unrelated clinical updates.
+  assert.deepEqual(
+    validateMutation({ id, version: 3, data: { notes: "Verifica" } }, "PATCH")
+      .data,
+    { notes: "Verifica" },
+  );
 });

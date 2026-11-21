@@ -12,6 +12,7 @@ import {
 } from "../lib/ward";
 import SyncMessage from "../components/SyncMessage";
 import PatientHistory from "../components/PatientHistory";
+import { PatientTeamFields } from "../components/PatientTeam";
 function PatientEditor({ patient }) {
   const { updatePatient, pending } = usePatientStore();
   const navigate = useNavigate();
@@ -41,6 +42,8 @@ function PatientEditor({ patient }) {
     const fields = [
       "firstName",
       "lastName",
+      "consultant",
+      "resident",
       "bedNumber",
       "diagnosis",
       "operationDate",
@@ -202,6 +205,15 @@ function PatientEditor({ patient }) {
                 <option>Terapia Intensiva</option>
               </select>
             </label>
+          </div>
+        </section>
+        <section className="form-section">
+          <div>
+            <h2>Team del paziente</h2>
+            <p>Referente e specializzando presente all’intervento.</p>
+          </div>
+          <div className="field-grid">
+            <PatientTeamFields patient={display} onChange={change} />
           </div>
         </section>
         <section className="form-section">

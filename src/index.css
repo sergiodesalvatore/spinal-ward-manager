@@ -1710,3 +1710,73 @@ label {
     padding-left: 0;
   }
 }
+
+.patient-team {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 10px 0 12px;
+}
+.team-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 100%;
+  min-height: 30px;
+  padding: 4px 8px;
+  border-radius: 5px;
+  background: var(--ground);
+  color: var(--text);
+  font-size: 12px;
+  line-height: 1.4;
+}
+.team-badge.consultant {
+  background: var(--soft);
+  color: var(--accent-hover);
+}
+.team-badge > span {
+  font-weight: 400;
+}
+.team-badge strong {
+  font-weight: 500;
+}
+.team-badge select {
+  width: auto;
+  max-width: 140px;
+  min-height: 28px;
+  padding: 2px 0;
+  border: 0;
+  border-radius: 3px;
+  background: transparent;
+  color: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+}
+.team-badge select:disabled {
+  cursor: wait;
+}
+.handover-preview > .patient-team {
+  margin-top: 0;
+}
+@media (max-width: 700px) {
+  .team-badge {
+    font-size: 12px;
+  }
+  label.team-badge {
+    min-height: 44px;
+  }
+  .team-badge select {
+    min-height: 36px;
+    font-size: 16px;
+    max-width: 165px;
+  }
+}
+@media print {
+  .team-badge,
+  .team-badge.consultant {
+    background: transparent;
+    color: #000;
+    padding-left: 0;
+  }
+}

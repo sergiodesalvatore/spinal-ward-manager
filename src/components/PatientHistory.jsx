@@ -2,6 +2,8 @@ import { useState } from "react";
 import { apiRequest } from "../lib/auth";
 import { usePatientStore } from "../store/usePatientStore";
 const fieldNames = {
+  consultant: "referente",
+  resident: "specializzando",
   firstName: "nome",
   lastName: "cognome",
   bedNumber: "letto",

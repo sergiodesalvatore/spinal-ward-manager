@@ -9,6 +9,7 @@ import {
   patientCount,
 } from "../lib/ward";
 import SyncMessage from "../components/SyncMessage";
+import { PatientTeamBadges } from "../components/PatientTeam";
 export default function ArchivePage() {
   const {
     patients,
@@ -91,6 +92,7 @@ export default function ArchivePage() {
                     {patientName(p)}
                   </Link>
                   <span className="cell-subline">{p.diagnosis}</span>
+                  <PatientTeamBadges patient={p} />
                 </div>
                 <div>
                   <span className="cell-subline">Dimissione</span>
