@@ -122,9 +122,9 @@ export default function LoginPage({
             ))}
           </div>
           <p className="login-title">
-            Il reparto,
+            Chirurgia
             <br />
-            in una vista.
+            vertebrale
           </p>
           <p>
             Pazienti, giro visita e consegne per il team di chirurgia
@@ -260,9 +260,9 @@ export default function LoginPage({
             </button>
           </div>
           <div className="demo-entry">
-            <span>Vuoi vedere come funziona?</span>
+            <span>Modalità demo</span>
             <button className="button secondary" onClick={onDemo}>
-              Esplora la demo <ArrowRight size={16} />
+              Apri demo <ArrowRight size={16} />
             </button>
             <small>Solo dati di esempio, nessuna cartella reale.</small>
           </div>

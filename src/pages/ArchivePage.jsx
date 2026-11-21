@@ -36,7 +36,7 @@ export default function ArchivePage() {
       <div className="page-heading">
         <div>
           <h1>Archivio pazienti</h1>
-          <p>Le cartelle dei pazienti dimessi, sempre ritrovabili.</p>
+          <p>Cartelle dei pazienti dimessi.</p>
         </div>
       </div>
       <SyncMessage />

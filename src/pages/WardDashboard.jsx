@@ -139,7 +139,7 @@ export default function WardDashboard() {
                 month: "long",
               }).format(new Date())}
             </p>
-            <h1>Il giro visita, a colpo d’occhio.</h1>
+            <h1>Pazienti in reparto</h1>
           </div>
           <Link to="/add" className="button lead-add">
             <Plus size={18} />
@@ -229,7 +229,7 @@ export default function WardDashboard() {
                   ? "Pazienti non disponibili"
                   : active.length
                     ? "Nessun risultato"
-                    : "Il reparto è pronto"}
+                    : "Nessun paziente in reparto"}
               </h3>
               <p>
                 {error
