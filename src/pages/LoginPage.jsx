@@ -111,15 +111,7 @@ export default function LoginPage({
       <main className="login-main">
         <section className="login-intro">
           <div className="login-spine" aria-hidden="true">
-            {Array.from({ length: 7 }, (_, i) => (
-              <span
-                key={i}
-                style={{
-                  width: `${70 + i * 5}%`,
-                  transform: `translateX(${Math.sin(i) * 7}px)`,
-                }}
-              />
-            ))}
+            <img src="/brand-vertebra.svg" width="88" height="88" alt="" />
           </div>
           <p className="login-title">
             Chirurgia
