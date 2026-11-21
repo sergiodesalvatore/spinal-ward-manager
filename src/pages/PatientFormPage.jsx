@@ -134,7 +134,7 @@ export default function PatientFormPage() {
         <section className="form-section">
           <div>
             <h2>Ubicazione e presidi</h2>
-            <p>Lo stato iniziale sarà modificabile dalla cartella.</p>
+            <p>Lo stato sarà modificabile anche dalla dashboard.</p>
           </div>
           <div className="field-grid">
             <label className="full-field">

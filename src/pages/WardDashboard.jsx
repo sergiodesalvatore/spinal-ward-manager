@@ -22,8 +22,9 @@ import {
 } from "../lib/ward";
 import SyncMessage from "../components/SyncMessage";
 import Modal from "../components/Modal";
+import PatientQuickEdit from "../components/PatientQuickEdit";
 import { PatientTeamBadges } from "../components/PatientTeam";
-function HandoverContent({ patient, busy, onDischarge }) {
+function HandoverContent({ patient, busy, onDischarge, children }) {
   return (
     <>
       <PatientTeamBadges patient={patient} />
@@ -32,6 +33,7 @@ function HandoverContent({ patient, busy, onDischarge }) {
         {postOpDays(patient.operationDate)}
       </span>
       <h3 className="handover-selected-name">{patientName(patient)}</h3>
+      {children}
       <p className="handover-preview-note">
         {patient.handover || "Nessuna consegna annotata per questo paziente."}
       </p>
@@ -79,7 +81,8 @@ export default function WardDashboard() {
   const [location, setLocation] = useState("Tutti");
   const [attention, setAttention] = useState(false);
   const [selectedId, setSelectedId] = useState(null);
-  const [mobileHandover, setMobileHandover] = useState(false);
+  const [quickEditOpen, setQuickEditOpen] = useState(false);
+  const [savedMessage, setSavedMessage] = useState("");
   const [swipedPatient, setSwipedPatient] = useState(null);
   const [dischargePatient, setDischargePatient] = useState(null);
   const swipeStart = useRef(null),
@@ -101,17 +104,18 @@ export default function WardDashboard() {
       }),
     );
   const selected = filtered.find((p) => p.id === selectedId) || filtered[0];
-  const mobileSelected = active.find((p) => p.id === selectedId);
+  const quickSelected = active.find((p) => p.id === selectedId);
   const diaries = scoped.filter((p) => !diaryDone(p)).length;
   const devices = scoped.filter(
     (p) => postOpDays(p.operationDate) >= 2 && (p.hasDrainage || p.hasCV),
   ).length;
   const choosePatient = (p) => {
     setSelectedId(p.id);
-    setMobileHandover(window.matchMedia("(max-width: 1000px)").matches);
+    setSavedMessage("");
+    setQuickEditOpen(true);
   };
   const requestDischarge = (p) => {
-    setMobileHandover(false);
+    setQuickEditOpen(false);
     setDischargePatient(p);
   };
   const discharge = async () => {
@@ -129,6 +133,11 @@ export default function WardDashboard() {
   return (
     <>
       <SyncMessage />
+      {savedMessage && (
+        <p className="quick-save-message" role="status">
+          {savedMessage}
+        </p>
+      )}
       <section className="ward-lead" aria-label="Riepilogo del reparto">
         <div className="lead-heading">
           <div>
@@ -311,7 +320,8 @@ export default function WardDashboard() {
                     <button
                       className="patient-card-select"
                       onClick={() => choosePatient(p)}
-                      aria-label={`Apri consegna di ${patientName(p)}`}
+                      aria-label={`Gestisci ${patientName(p)}`}
+                      aria-haspopup="dialog"
                       aria-pressed={selected?.id === p.id}
                     >
                       <span className="patient-name">{patientName(p)}</span>
@@ -414,7 +424,14 @@ export default function WardDashboard() {
                 patient={selected}
                 busy={pending.includes(selected.id)}
                 onDischarge={requestDischarge}
-              />
+              >
+                <button
+                  className="button secondary"
+                  onClick={() => choosePatient(selected)}
+                >
+                  Modifica stato
+                </button>
+              </HandoverContent>
             ) : (
               <p>Seleziona un paziente per leggere la consegna.</p>
             )}
@@ -436,17 +453,40 @@ export default function WardDashboard() {
         Le verifiche dei presidi seguono il giorno postoperatorio. La
         valutazione resta al team clinico.
       </p>
-      {mobileHandover && mobileSelected && (
+      {quickEditOpen && quickSelected && (
         <div className="mobile-handover-modal">
           <Modal
-            title="Consegna del team"
-            onClose={() => setMobileHandover(false)}
+            title="Gestione rapida"
+            onClose={() => {
+              if (!pending.includes(quickSelected.id)) setQuickEditOpen(false);
+            }}
           >
             <HandoverContent
-              patient={mobileSelected}
-              busy={pending.includes(mobileSelected.id)}
+              patient={quickSelected}
+              busy={pending.includes(quickSelected.id)}
               onDischarge={requestDischarge}
-            />
+            >
+              <PatientQuickEdit
+                key={quickSelected.id}
+                patient={quickSelected}
+                busy={pending.includes(quickSelected.id)}
+                error={error}
+                onSave={async (changes, version) => {
+                  const saved = await updatePatient(
+                    quickSelected.id,
+                    changes,
+                    version,
+                  );
+                  if (saved) {
+                    setQuickEditOpen(false);
+                    setSavedMessage(
+                      `Stato di ${patientName(quickSelected)} aggiornato.`,
+                    );
+                  }
+                  return saved;
+                }}
+              />
+            </HandoverContent>
           </Modal>
         </div>
       )}
