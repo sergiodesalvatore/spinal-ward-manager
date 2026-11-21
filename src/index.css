@@ -273,6 +273,11 @@ label {
   gap: 8px;
   color: var(--muted);
   font-size: 13px;
+  border: 0;
+  background: transparent;
+  padding: 10px 0;
+  min-height: 44px;
+  cursor: pointer;
 }
 .protocol-link:hover {
   color: var(--accent);
@@ -1241,6 +1246,10 @@ label {
     padding: 14px 24px;
   }
   .protocol-link {
+    min-width: 44px;
+    justify-content: center;
+  }
+  .protocol-link span {
     display: none;
   }
   .canvas {
@@ -1778,5 +1787,49 @@ label {
     background: transparent;
     color: #000;
     padding-left: 0;
+  }
+}
+
+.protocol-modal {
+  max-width: 1000px;
+  height: 92dvh;
+  max-height: 92dvh;
+  overflow: hidden;
+}
+.protocol-modal .modal-content {
+  padding: 0;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+.protocol-modal .section-heading {
+  flex-shrink: 0;
+  padding: 12px 20px;
+  margin: 0;
+}
+.protocol-toolbar {
+  flex-shrink: 0;
+  padding: 0 20px 12px;
+}
+.protocol-image-view {
+  min-height: 0;
+  overflow: auto;
+  overscroll-behavior: contain;
+  background: var(--bg);
+  flex: 1;
+}
+.protocol-image-view img {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  height: auto;
+}
+.protocol-image-view.zoomed img {
+  width: max(100%, 1200px);
+  max-width: none;
+}
+@media (max-width: 700px) {
+  .topbar-tools {
+    gap: 8px;
   }
 }

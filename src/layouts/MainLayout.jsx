@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import Brand from "../components/Brand";
 import SettingsModal from "../components/SettingsModal";
+import ProtocolModal from "../components/ProtocolModal";
 import { usePatientStore } from "../store/usePatientStore";
 const links = [
   { to: "/", label: "Pazienti", Icon: Users },
@@ -18,6 +19,7 @@ const links = [
 ];
 export default function MainLayout({ user, onSignOut }) {
   const [settings, setSettings] = useState(false);
+  const [protocol, setProtocol] = useState(false);
   const { demo, isSyncing, lastSynced, error, refresh, pending } =
     usePatientStore();
   const status = demo
@@ -49,15 +51,14 @@ export default function MainLayout({ user, onSignOut }) {
             ))}
           </nav>
           <div className="topbar-tools">
-            <a
+            <button
               className="protocol-link"
-              href="https://1drv.ms/i/c/1463450412a5421e/IQCOVSR2aP7_Q580gCIQAPpsAd2rv9-xl1lC03oZIf_cf78?e=2DreF8"
-              target="_blank"
-              rel="noreferrer"
+              onClick={() => setProtocol(true)}
+              aria-label="Protocollo ERAS"
             >
               <BookOpen size={17} />
-              Protocollo ERAS
-            </a>
+              <span>Protocollo ERAS</span>
+            </button>
             <button
               className="account-button"
               onClick={() => setSettings(true)}
@@ -120,8 +121,13 @@ export default function MainLayout({ user, onSignOut }) {
         <SettingsModal
           onClose={() => setSettings(false)}
           onSignOut={onSignOut}
+          onOpenProtocol={() => {
+            setSettings(false);
+            setProtocol(true);
+          }}
         />
       )}
+      {protocol && <ProtocolModal onClose={() => setProtocol(false)} />}
     </div>
   );
 }

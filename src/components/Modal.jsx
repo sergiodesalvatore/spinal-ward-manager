@@ -1,6 +1,6 @@
 import { useEffect, useId, useRef } from "react";
 import { X } from "lucide-react";
-export default function Modal({ title, children, onClose }) {
+export default function Modal({ title, children, onClose, className = "" }) {
   const ref = useRef(null);
   const titleId = useId();
   useEffect(() => {
@@ -15,7 +15,7 @@ export default function Modal({ title, children, onClose }) {
   return (
     <dialog
       ref={ref}
-      className="modal"
+      className={`modal ${className}`}
       aria-labelledby={titleId}
       onCancel={onClose}
       onClick={(e) => {
