@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { authClient } from "./lib/auth";
 import { PatientProvider } from "./store/PatientContext";
@@ -17,12 +17,19 @@ export default function App() {
   const [session, setSession] = useState(null);
   const [loading, setLoading] = useState(Boolean(authClient));
   const [authError, setAuthError] = useState("");
+  const sessionRejected = useRef(false);
   useEffect(() => {
     let active = true;
+    const sessionExpired = () => {
+      sessionRejected.current = true;
+      setSession(null);
+      setAuthError("Sessione scaduta. Accedi di nuovo.");
+    };
     const load = async () => {
+      if (sessionRejected.current) return;
       try {
         const result = await authClient?.getSession();
-        if (active) {
+        if (active && !sessionRejected.current) {
           if (!result?.error) setSession(result?.data || null);
           setAuthError(
             result?.error
@@ -39,9 +46,11 @@ export default function App() {
     };
     load();
     window.addEventListener("focus", load);
+    window.addEventListener("scolioward:session-expired", sessionExpired);
     return () => {
       active = false;
       window.removeEventListener("focus", load);
+      window.removeEventListener("scolioward:session-expired", sessionExpired);
     };
   }, []);
   if (!demo && loading)
@@ -54,7 +63,11 @@ export default function App() {
     return (
       <LoginPage
         error={authError}
-        onSession={setSession}
+        onSession={(value) => {
+          sessionRejected.current = false;
+          setAuthError("");
+          setSession(value);
+        }}
         onDemo={() => setDemo(true)}
       />
     );
