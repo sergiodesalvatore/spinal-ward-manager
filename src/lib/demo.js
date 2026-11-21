@@ -1,4 +1,4 @@
-import { localDate } from "./ward";
+import { localDate } from "./ward.js";
 import { CONSULTANTS, RESIDENTS } from "../../shared/careTeam.js";
 const daysAgo = (days) => {
   const d = new Date();

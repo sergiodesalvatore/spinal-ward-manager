@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
-import { ArrowUpRight, Printer } from "lucide-react";
+import { ArrowUpRight } from "lucide-react";
 import { usePatientStore } from "../store/usePatientStore";
 import {
   patientCount,
@@ -10,6 +10,7 @@ import {
   postOpDays,
   diaryDone,
 } from "../lib/ward";
+import ShareHandoverPdf from "../components/ShareHandoverPdf";
 import SyncMessage from "../components/SyncMessage";
 import { PatientTeamBadges } from "../components/PatientTeam";
 export default function HandoverPage() {
@@ -31,10 +32,13 @@ export default function HandoverPage() {
           <h1>Consegne del reparto</h1>
           <p>Le informazioni da passare al prossimo turno.</p>
         </div>
-        <button className="button secondary" onClick={() => window.print()}>
-          <Printer size={16} />
-          Stampa consegne
-        </button>
+        <ShareHandoverPdf
+          patients={rows}
+          lastSynced={lastSynced}
+          onlyNotes={onlyNotes}
+          demo={demo}
+          unavailable={!demo && !lastSynced}
+        />
       </div>
       <SyncMessage />
       <section className="ward-panel">
